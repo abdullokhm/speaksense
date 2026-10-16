@@ -8,8 +8,8 @@ import edge_tts
 
 VOICE_MAP = {
     "ielts": "en-GB-RyanNeural",         # British Oxford Examiner
-    "visa": "en-US-ChristopherNeural",   # Stern US Consular Officer
-    "job": "en-US-GuyNeural",            # Professional FAANG Tech Director
+    "visa": "en-US-AndrewNeural",        # Authoritative, Conversational US Consular Officer
+    "job": "en-US-BrianNeural",          # Sincere, Sharp FAANG Tech Director
     "default": "en-GB-RyanNeural"
 }
 
@@ -148,7 +148,7 @@ async def handle_comprehend(request):
     # If Gemini API Key is provided, use Google's cutting edge neural reasoning!
     if api_key:
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
             
             # Format history for Gemini
             contents = []
@@ -172,13 +172,13 @@ async def handle_comprehend(request):
             }
 
             async with ClientSession() as session:
-                async with session.post(url, json=payload, timeout=5) as resp:
+                async with session.post(url, json=payload, timeout=8) as resp:
                     if resp.status == 200:
                         res_json = await resp.json()
                         reply = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
                         # Clean reply from quotes or markdown
                         reply = re.sub(r'[\*\"\_]', '', reply)
-                        return web.json_response({"reply": reply, "engine": "gemini-2.0-flash"})
+                        return web.json_response({"reply": reply, "engine": "gemini-3.8-flash"})
                     else:
                         err_text = await resp.text()
                         print(f"Gemini API returned status {resp.status}: {err_text}")

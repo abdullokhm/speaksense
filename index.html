@@ -533,6 +533,9 @@ body {
       <button class="btn btn-ghost" onclick="toggleMuteMic()" id="btnMute">
         🎤 Mute Mic
       </button>
+      <button class="btn btn-primary" onclick="submitCurrentTurnManual()" id="btnDoneSpeaking" style="display:none; background:#10b981; color:#050608; font-weight:600; box-shadow:0 0 15px rgba(16,185,129,0.4);">
+        Done Speaking ➔
+      </button>
       <button class="btn btn-danger" onclick="endCallAndShowSummary()">
         End Call & See Score
       </button>
@@ -699,18 +702,24 @@ function aiSpeak(text) {
   });
 }
 
+let finalTranscript = "";
+let currentSpokenBuffer = "";
+let isListeningToUser = false;
+let isMuted = false;
+
 function initRecognizer() {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRec) {
     alert("Please use Google Chrome or Microsoft Edge for the live voice call.");
     return;
   }
+  if (recognition) {
+    try { recognition.stop(); } catch(e) {}
+  }
   recognition = new SpeechRec();
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = "en-US";
-
-  let finalTranscript = "";
 
   recognition.onresult = (e) => {
     let interim = "";
@@ -722,28 +731,41 @@ function initRecognizer() {
       }
     }
 
-    const currentSpoken = (finalTranscript + interim).trim();
-    if (currentSpoken) {
-      document.getElementById('subtitleText').textContent = `"${currentSpoken}"`;
-      updateLiveTelemetry(currentSpoken);
+    currentSpokenBuffer = (finalTranscript + interim).trim();
+    if (currentSpokenBuffer) {
+      document.getElementById('subtitleText').textContent = `"${currentSpokenBuffer}"`;
+      updateLiveTelemetry(currentSpokenBuffer);
 
-      // 1.8s silence threshold to trigger natural fast turn-taking
+      // 2.6s silence threshold — comfortable breathing room so user isn't cut off
       clearTimeout(silenceTimer);
       silenceTimer = setTimeout(() => {
-        if (currentSpoken.length > 5) {
-          handleUserFinishedSpeaking(currentSpoken);
-          finalTranscript = "";
+        if (currentSpokenBuffer.length > 3 && isListeningToUser) {
+          handleUserFinishedSpeaking(currentSpokenBuffer);
         }
-      }, 1800);
+      }, 2600);
     }
   };
 
   recognition.onerror = (err) => {
-    console.warn("Speech recognition error:", err);
+    console.warn("Speech recognition notice:", err.error);
+  };
+
+  recognition.onend = () => {
+    // If the browser pauses or cuts recognition while user is still speaking, immediately restart
+    if (isListeningToUser && isCallActive && !isMuted) {
+      try {
+        recognition.start();
+      } catch(e) {}
+    }
   };
 }
 
 function startListeningToUser() {
+  isListeningToUser = true;
+  finalTranscript = "";
+  currentSpokenBuffer = "";
+  clearTimeout(silenceTimer);
+
   const callView = document.getElementById('viewCall');
   callView.className = "view-call active user-speaking";
   document.getElementById('callStatusText').textContent = "Listening to you... Speak naturally";
@@ -751,12 +773,33 @@ function startListeningToUser() {
   document.getElementById('subtitleStateLabel').textContent = "LISTENING";
   document.getElementById('subtitleText').textContent = "Speak into your microphone...";
 
-  try {
-    recognition.start();
-  } catch(e) {}
+  const btnDone = document.getElementById('btnDoneSpeaking');
+  if (btnDone) btnDone.style.display = 'inline-flex';
+
+  if (!isMuted && recognition) {
+    try {
+      recognition.start();
+    } catch(e) {}
+  }
+}
+
+function submitCurrentTurnManual() {
+  if (!isListeningToUser) return;
+  const text = (currentSpokenBuffer || finalTranscript).trim();
+  if (text.length > 2) {
+    clearTimeout(silenceTimer);
+    handleUserFinishedSpeaking(text);
+  } else {
+    document.getElementById('subtitleText').textContent = "Please speak first or check your microphone...";
+  }
 }
 
 async function handleUserFinishedSpeaking(userText) {
+  isListeningToUser = false;
+  clearTimeout(silenceTimer);
+  const btnDone = document.getElementById('btnDoneSpeaking');
+  if (btnDone) btnDone.style.display = 'none';
+
   try { recognition.stop(); } catch(e){}
   
   conversationHistory.push({ speaker: 'user', text: userText });
@@ -825,12 +868,18 @@ function updateLiveTelemetry(text) {
 
 function toggleMuteMic() {
   const btn = document.getElementById('btnMute');
-  if (btn.textContent.includes("Mute")) {
+  if (!isMuted) {
+    isMuted = true;
     try { recognition.stop(); } catch(e){}
     btn.textContent = "🔊 Unmute Mic";
+    btn.style.color = "var(--rose)";
   } else {
-    try { recognition.start(); } catch(e){}
+    isMuted = false;
     btn.textContent = "🎤 Mute Mic";
+    btn.style.color = "";
+    if (isListeningToUser && recognition) {
+      try { recognition.start(); } catch(e){}
+    }
   }
 }
 
