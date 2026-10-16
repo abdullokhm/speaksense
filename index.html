@@ -439,10 +439,10 @@ body {
     </div>
 
     <div class="nav-right">
-      <button class="brain-btn" onclick="openBrainModal()">
-        <span class="brain-active-dot" id="brainDot"></span>
-        <span id="brainLabel">Local Semantic Brain</span>
-      </button>
+      <div class="brain-btn" style="cursor:default;">
+        <span class="brain-active-dot" id="brainDot" style="background:#6366f1; box-shadow:0 0 10px #6366f1;"></span>
+        <span id="brainLabel">⚡ Gemini 2.0 AI Brain</span>
+      </div>
     </div>
   </div>
 </header>
@@ -540,34 +540,8 @@ body {
   </section>
 </main>
 
-<!-- Brain Settings Modal -->
-<div class="modal-brain" id="modalBrain">
-  <div class="summary-box" style="max-width:540px;">
-    <button class="modal-close-btn" onclick="closeBrainModal()">×</button>
-    <div style="font-size:11px; text-transform:uppercase; font-family:var(--font-mono); color:var(--accent); margin-bottom:4px;">Comprehension Engine</div>
-    <h2 style="font-size:22px; color:#fff; margin-bottom:12px;">AI Brain Settings</h2>
-    
-    <p style="font-size:14px; color:var(--ink-secondary); line-height:1.6; margin-bottom:20px;">
-      SpeakSense currently uses our built-in <strong>Local Semantic Brain</strong> to understand your sentences and challenge your arguments.
-    </p>
 
-    <div style="background:var(--surface-raised); border:1px solid var(--border); border-radius:12px; padding:18px; margin-bottom:20px;">
-      <h4 style="font-size:14px; color:#fff; margin-bottom:6px;">Want Full ChatGPT/Gemini Level Intelligence?</h4>
-      <p style="font-size:13px; color:#cbd5e1; line-height:1.5; margin-bottom:14px;">
-        You can paste a 100% free Google Gemini API key. The examiner will dynamically converse about literally anything in the world with zero scripts.
-      </p>
-      <input type="password" id="inputApiKey" placeholder="Paste free Gemini API key (AIzaSy...)" style="width:100%; background:#090b10; border:1px solid var(--border); border-radius:8px; padding:10px 12px; color:#fff; font-family:var(--font-mono); font-size:13px; margin-bottom:10px;" />
-      <div style="font-size:11px; color:var(--ink-muted);">
-        Don't have one? Get a free key in 10 seconds at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:#818cf8; text-decoration:none;">aistudio.google.com ↗</a> (No credit card needed).
-      </div>
-    </div>
 
-    <div style="display:flex; justify-content:flex-end; gap:10px;">
-      <button class="btn btn-ghost" onclick="clearApiKey()">Reset to Local</button>
-      <button class="btn btn-primary" onclick="saveApiKey()">Save & Connect</button>
-    </div>
-  </div>
-</div>
 
 <!-- Post-Call Summary Modal -->
 <div class="modal-summary" id="modalSummary">
@@ -807,8 +781,6 @@ async function handleUserFinishedSpeaking(userText) {
   callView.className = "view-call active ai-thinking";
   document.getElementById('callStatusText').textContent = `${personas[currentPersonaKey].name} is processing your answer...`;
 
-  const savedKey = localStorage.getItem('speaksense_gemini_key') || '';
-
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000); // 8s timeout
@@ -820,8 +792,7 @@ async function handleUserFinishedSpeaking(userText) {
         message: userText,
         persona: currentPersonaKey,
         turn: currentTurn - 1,
-        history: conversationHistory,
-        apiKey: savedKey
+        history: conversationHistory
       }),
       signal: controller.signal
     });
@@ -906,48 +877,9 @@ function restartApp() {
   document.getElementById('viewSetup').style.display = 'block';
 }
 
-// Brain modal controls
-function openBrainModal() {
-  const saved = localStorage.getItem('speaksense_gemini_key') || '';
-  document.getElementById('inputApiKey').value = saved;
-  document.getElementById('modalBrain').classList.add('open');
-}
-function closeBrainModal() {
-  document.getElementById('modalBrain').classList.remove('open');
-}
-function saveApiKey() {
-  const k = document.getElementById('inputApiKey').value.trim();
-  if (k) {
-    localStorage.setItem('speaksense_gemini_key', k);
-  } else {
-    localStorage.removeItem('speaksense_gemini_key');
-  }
-  closeBrainModal();
-  updateBrainStatus();
-}
-function clearApiKey() {
-  localStorage.removeItem('speaksense_gemini_key');
-  document.getElementById('inputApiKey').value = '';
-  closeBrainModal();
-  updateBrainStatus();
-}
-function updateBrainStatus() {
-  const k = localStorage.getItem('speaksense_gemini_key');
-  const label = document.getElementById('brainLabel');
-  const dot = document.getElementById('brainDot');
-  if (k) {
-    label.textContent = "⚡ Gemini 2.0 AI Brain Active";
-    dot.style.background = "#6366f1";
-    dot.style.boxShadow = "0 0 10px #6366f1";
-  } else {
-    label.textContent = "Local Semantic Brain";
-    dot.style.background = "#34d399";
-    dot.style.boxShadow = "0 0 10px #34d399";
-  }
-}
 
-// Init
-updateBrainStatus();
+// Init — ready to go
+
 
 // Browser compatibility check
 (function checkBrowser() {
