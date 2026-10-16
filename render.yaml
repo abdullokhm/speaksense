@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: speaksense
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: PYTHON_VERSION
+        value: "3.11.0"
