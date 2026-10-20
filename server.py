@@ -204,9 +204,9 @@ async def handle_comprehend(request):
                         return web.json_response({"reply": reply, "engine": "gemini-3.8-flash"})
                     else:
                         err_text = await resp.text()
-                        print(f"Gemini API returned status {resp.status}: {err_text}")
+                        print(f"[Notice] Gemini API returned status {resp.status}: {err_text[:120]}")
         except Exception as e:
-            print(f"Gemini request failed: {e}")
+            print(f"[Notice] Comprehend fallback engaged: {type(e).__name__}")
 
     local_reply = local_semantic_comprehend(user_text, persona, turn, history, topic=topic, target=target)
     return web.json_response({"reply": local_reply, "engine": "local-semantic"})
@@ -233,16 +233,20 @@ RULES: Output strictly 2 short bullet points (max 30 words total). No fluff, pur
 
             payload = {
                 "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.5, "maxOutputTokens": 80}
+                "generationConfig": {
+                    "temperature": 0.5,
+                    "maxOutputTokens": 80,
+                    "thinkingConfig": {"thinkingBudget": 0}
+                }
             }
             async with ClientSession() as session:
-                async with session.post(url, json=payload, timeout=6) as resp:
+                async with session.post(url, json=payload, timeout=3.5) as resp:
                     if resp.status == 200:
                         res_json = await resp.json()
                         hint_text = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
                         return web.json_response({"hint": hint_text})
         except Exception as e:
-            print(f"Hint error: {e}")
+            print(f"[Notice] Hint fallback engaged: {type(e).__name__}")
 
     # Fallback hints based on persona
     fallback_map = {
@@ -305,10 +309,14 @@ CRITICAL: Output ONLY raw valid JSON. No markdown code blocks, no backticks."""
 
             payload = {
                 "contents": [{"role": "user", "parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.4, "maxOutputTokens": 600}
+                "generationConfig": {
+                    "temperature": 0.4,
+                    "maxOutputTokens": 600,
+                    "thinkingConfig": {"thinkingBudget": 0}
+                }
             }
             async with ClientSession() as session:
-                async with session.post(url, json=payload, timeout=12) as resp:
+                async with session.post(url, json=payload, timeout=4.0) as resp:
                     if resp.status == 200:
                         res_json = await resp.json()
                         raw_text = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -317,7 +325,7 @@ CRITICAL: Output ONLY raw valid JSON. No markdown code blocks, no backticks."""
                         parsed = json.loads(raw_text)
                         return web.json_response(parsed)
         except Exception as e:
-            print(f"Analyze error: {e}")
+            print(f"[Notice] Diagnostic fallback engaged: {type(e).__name__}")
 
     # Fallback diagnostics
     score = "Band 7.5" if total_words > 120 else "Band 6.5"
