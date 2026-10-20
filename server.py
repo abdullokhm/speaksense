@@ -190,13 +190,13 @@ async def handle_comprehend(request):
                 "contents": contents,
                 "generationConfig": {
                     "temperature": 0.7,
-                    "maxOutputTokens": 60,
-                    "topP": 0.95
+                    "maxOutputTokens": 45,
+                    "thinkingConfig": {"thinkingBudget": 0}
                 }
             }
 
             async with ClientSession() as session:
-                async with session.post(url, json=payload, timeout=8) as resp:
+                async with session.post(url, json=payload, timeout=4.0) as resp:
                     if resp.status == 200:
                         res_json = await resp.json()
                         reply = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()

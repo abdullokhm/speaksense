@@ -759,6 +759,49 @@ body {
 }
 .transcript-line.ai { border-left: 3px solid var(--accent-iris); background: rgba(99, 102, 241, 0.08); }
 .transcript-line.user { border-left: 3px solid var(--accent-emerald); background: rgba(16, 185, 129, 0.08); }
+
+/* Official Institutional Print / PDF Clearance Stylesheet */
+@media print {
+  body { background: #ffffff !important; color: #000000 !important; }
+  .nav, .hero-stage, .view-call, .btn-launch, .btn-preview, .strategy-hologram, .launch-bar, .cockpit-controls {
+    display: none !important;
+  }
+  .modal-clearance {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  .clearance-card {
+    border: 2px solid #0f172a !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    padding: 24px !important;
+    background: #ffffff !important;
+  }
+  .clearance-title, .radar-metric-val, .elevator-after {
+    color: #000000 !important;
+  }
+  .clearance-stamp {
+    color: #475569 !important;
+    font-weight: bold !important;
+  }
+  .clearance-badge {
+    border: 2px solid #059669 !important;
+    color: #059669 !important;
+    background: #f0fdf4 !important;
+  }
+  .radar-metric-box, .elevators-pod, .transcript-line {
+    border: 1px solid #cbd5e1 !important;
+    background: #f8fafc !important;
+    color: #000000 !important;
+  }
+  .elevator-before {
+    color: #334155 !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -793,6 +836,9 @@ body {
     </div>
     <h1>Master your next interview. <span>Live out loud.</span></h1>
     <p class="hero-subtitle">Engage in continuous, low-latency spoken dialogue with neural evaluators. Real British and American cadences, dynamic follow-ups, and diagnostic Ivy League debriefs.</p>
+
+    <!-- Candidate Session Track Record Shelf -->
+    <div id="trackRecordShelf" class="glass" style="display:none; max-width:540px; margin:0 auto 28px; padding:10px 18px; border-radius:999px; font-family:var(--font-mono); font-size:11px; align-items:center; justify-content:center; gap:8px;"></div>
 
     <!-- 01 Neural Chamber Selector -->
     <div class="control-section-header">
@@ -1014,10 +1060,15 @@ body {
       <!-- Dynamic Bubbles -->
     </div>
 
-    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border);">
-      <button class="btn-preview" onclick="exportDossierClipboard()">
-        📋 Copy Report
-      </button>
+    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:20px; border-top:1px solid var(--border); flex-wrap:wrap; gap:12px;">
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn-preview" onclick="exportDossierClipboard()">
+          📋 Copy Text
+        </button>
+        <button class="btn-preview" onclick="window.print()" style="background:rgba(56, 189, 248, 0.15); border-color:var(--accent-cyan); color:#e0f2fe;">
+          📄 Download Official PDF
+        </button>
+      </div>
       <button class="btn-launch" onclick="restartMissionTerminal()">
         Practice Another Session
       </button>
@@ -1331,6 +1382,18 @@ function aiSpeakTurn(text) {
 
   conversationHistory.push({ speaker: 'ai', text: text });
 
+  // Cancel prior speech synthesis
+  if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+  // Reset buffers
+  finalTranscript = "";
+  currentSpokenBuffer = "";
+
+  // Enable recognition in background so candidate can barge in
+  if (recognition && !isMuted) {
+    try { recognition.start(); } catch(e){}
+  }
+
   playNeuralAudioStream(text, () => {
     if (!isSessionActive) return;
     beginListeningToCandidate();
@@ -1362,17 +1425,38 @@ function initRecognizer() {
     }
 
     currentSpokenBuffer = (finalTranscript + interim).trim();
+
+    // Natural Conversational Barge-In Interrupt:
+    // If candidate speaks while AI is outputting audio, yield the floor instantly
+    if (currentSpokenBuffer.length > 3 && ((currentAudio && !currentAudio.paused) || ('speechSynthesis' in window && window.speechSynthesis.speaking))) {
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio = null;
+      }
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      isListeningToUser = true;
+      orbMode = 'user';
+      orbActivity = 1.1;
+      document.getElementById('orbStateLabel').textContent = "CANDIDATE // BARGE-IN INTERRUPT";
+      document.getElementById('teleprompterSpeaker').textContent = "YOU";
+      document.getElementById('teleprompterState').textContent = "SPEAKING";
+      document.getElementById('teleprompterState').style.color = "#34d399";
+      const btnDone = document.getElementById('btnCockpitDone');
+      if (btnDone) btnDone.style.display = 'inline-flex';
+    }
+
     if (currentSpokenBuffer) {
       document.getElementById('teleprompterText').textContent = `"${currentSpokenBuffer}"`;
       updateTelemetryFillers(currentSpokenBuffer);
       orbActivity = 1.2;
 
       clearTimeout(silenceTimer);
+      // Fast, natural turn-taking threshold (1350ms)
       silenceTimer = setTimeout(() => {
         if (currentSpokenBuffer.length > 3 && isListeningToUser) {
           handleCandidateCompletedTurn(currentSpokenBuffer);
         }
-      }, 2600);
+      }, 1350);
     }
   };
 
@@ -1381,7 +1465,7 @@ function initRecognizer() {
   };
 
   recognition.onend = () => {
-    if (isListeningToUser && isSessionActive && !isMuted) {
+    if ((isListeningToUser || (currentAudio && !currentAudio.paused)) && isSessionActive && !isMuted) {
       try {
         recognition.start();
       } catch(e) {}
@@ -1461,6 +1545,18 @@ async function handleCandidateCompletedTurn(spokenText) {
       terminateSessionAndEvaluate();
     }, 4500);
     return;
+  }
+
+  // Instant Acoustic Conversational Bridge:
+  // Immediate micro-acknowledgment to mask perceived latency completely!
+  const acknowledgments = ["Understood.", "Right.", "I see.", "Noted."];
+  const bridgeText = acknowledgments[Math.floor(Math.random() * acknowledgments.length)];
+  if ('speechSynthesis' in window) {
+    try {
+      const bridgeUtterance = new SpeechSynthesisUtterance(bridgeText);
+      bridgeUtterance.rate = 1.25;
+      window.speechSynthesis.speak(bridgeUtterance);
+    } catch(e){}
   }
 
   // AI Thinking State
@@ -1649,6 +1745,21 @@ async function terminateSessionAndEvaluate() {
         </div>
       `;
     }
+
+    // Persist session to local history
+    try {
+      const records = JSON.parse(localStorage.getItem('speaksense_sessions') || '[]');
+      records.push({
+        date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        chamber: personas[currentPersonaKey].name,
+        score: evalData.overallScore || "Evaluated",
+        verdict: evalData.verdict || "Completed",
+        words: totalWordCount,
+        fillers: totalFillerCount
+      });
+      localStorage.setItem('speaksense_sessions', JSON.stringify(records.slice(-25)));
+      loadTrackRecordBanner();
+    } catch(e){}
   } catch(e) {
     console.warn("Diagnostics error:", e);
   }
@@ -1670,7 +1781,36 @@ function restartMissionTerminal() {
   orbMode = 'idle';
   orbActivity = 0.5;
   document.getElementById('orbStateLabel').textContent = "STANDBY // CLICK TO AUDITION";
+  loadTrackRecordBanner();
 }
+
+function loadTrackRecordBanner() {
+  try {
+    const records = JSON.parse(localStorage.getItem('speaksense_sessions') || '[]');
+    const shelf = document.getElementById('trackRecordShelf');
+    if (!shelf) return;
+    if (!records || records.length === 0) {
+      shelf.style.display = 'none';
+      return;
+    }
+    const latest = records[records.length - 1];
+    shelf.style.display = 'inline-flex';
+    shelf.innerHTML = `
+      <span style="color:var(--accent-emerald); font-weight:700;">● RECENT MISSION</span>
+      <span style="color:var(--text-muted);">|</span>
+      <span>${latest.chamber}</span>
+      <span style="color:var(--text-muted);">&bull;</span>
+      <strong style="color:var(--accent-cyan);">${latest.score}</strong>
+      <span style="color:var(--text-muted);">(${latest.date})</span>
+      <span style="color:var(--text-muted); margin-left:6px; font-size:10px; opacity:0.8;">— ${records.length} saved</span>
+    `;
+  } catch(e) {
+    console.warn("Track record shelf load:", e);
+  }
+}
+
+// Mount historical track record on startup
+loadTrackRecordBanner();
 </script>
 </body>
 </html>
