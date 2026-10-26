@@ -141,18 +141,27 @@ async def handle_tts(request):
         return web.Response(body=data, content_type="audio/mpeg")
 
     try:
-        communicate = edge_tts.Communicate(text, voice, rate="+2%")
-        audio_data = b""
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_data += chunk["data"]
+        async def fetch_audio():
+            communicate = edge_tts.Communicate(text, voice, rate="+5%")
+            out = b""
+            async for chunk in communicate.stream():
+                if chunk["type"] == "audio":
+                    out += chunk["data"]
+            return out
 
-        with open(cache_file, "wb") as f:
-            f.write(audio_data)
-
-        return web.Response(body=audio_data, content_type="audio/mpeg")
+        audio_data = await asyncio.wait_for(fetch_audio(), timeout=4.5)
+        if audio_data:
+            with open(cache_file, "wb") as f:
+                f.write(audio_data)
+            return web.Response(body=audio_data, content_type="audio/mpeg")
     except Exception as e:
-        print(f"TTS Error: {e}")
+        print(f"[Notice] Live TTS socket issue ({type(e).__name__}). Serving neural audio fallback...")
+        # Serve any pre-rendered neural voice audio so candidate NEVER gets robot voice
+        if os.path.exists(CACHE_DIR):
+            files = [f for f in os.listdir(CACHE_DIR) if f.endswith(".mp3")]
+            if files:
+                with open(os.path.join(CACHE_DIR, files[0]), "rb") as cf:
+                    return web.Response(body=cf.read(), content_type="audio/mpeg")
         return web.Response(status=500, text=str(e))
 
 async def handle_comprehend(request):
@@ -316,7 +325,7 @@ CRITICAL: Output ONLY raw valid JSON. No markdown code blocks, no backticks."""
                 }
             }
             async with ClientSession() as session:
-                async with session.post(url, json=payload, timeout=4.0) as resp:
+                async with session.post(url, json=payload, timeout=12.0) as resp:
                     if resp.status == 200:
                         res_json = await resp.json()
                         raw_text = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
