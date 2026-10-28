@@ -7,11 +7,11 @@ from aiohttp import web, ClientSession
 import edge_tts
 
 VOICE_MAP = {
-    "ielts": "en-GB-RyanNeural",          # British Oxford Examiner
-    "visa": "en-US-AndrewNeural",         # Authoritative, Conversational US Consular Officer
-    "job": "en-US-BrianNeural",           # Sincere, Sharp FAANG Tech Director
-    "college": "en-US-AvaNeural",         # Intellectually Sharp Ivy League Admissions Officer
-    "default": "en-GB-RyanNeural"
+    "ielts": "en-GB-ThomasNeural",        # Refined British Academic Examiner
+    "visa": "en-US-GuyNeural",            # Natural, conversational US Consular Officer
+    "job": "en-US-BrianNeural",           # Clear, authoritative FAANG Tech Director
+    "college": "en-US-JennyNeural",       # Warm, articulate Ivy League Admissions Officer
+    "default": "en-GB-ThomasNeural"
 }
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "audio_cache")
@@ -142,7 +142,7 @@ async def handle_tts(request):
 
     try:
         async def fetch_audio():
-            communicate = edge_tts.Communicate(text, voice, rate="+5%")
+            communicate = edge_tts.Communicate(text, voice, rate="+0%")
             out = b""
             async for chunk in communicate.stream():
                 if chunk["type"] == "audio":
@@ -371,7 +371,12 @@ async def handle_index(request):
     index_path = os.path.join(os.path.dirname(__file__), "index.html")
     with open(index_path, "r", encoding="utf-8") as f:
         content = f.read()
-    return web.Response(text=content, content_type="text/html")
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    return web.Response(text=content, content_type="text/html", headers=headers)
 
 app = web.Application()
 app.router.add_get("/", handle_index)

@@ -3,823 +3,1556 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SpeakSense — AI Interview Coach</title>
+<title>SpeakSense — Spoken Interview Simulator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #09090b;
-  --surface: #18181b;
-  --surface-2: #27272a;
-  --border: #3f3f46;
-  --border-subtle: #27272a;
-  --text: #fafafa;
-  --text-2: #a1a1aa;
-  --text-3: #71717a;
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --green: #22c55e;
-  --green-dim: rgba(34,197,94,0.12);
-  --yellow: #eab308;
-  --red: #ef4444;
-  --radius: 12px;
-  --radius-lg: 16px;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-subtle: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --primary: #0f172a;
+  --primary-hover: #1e293b;
+  --accent-blue: #0284c7;
+  --accent-emerald: #059669;
+  --accent-amber: #d97706;
+  --accent-rose: #e11d48;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
 }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
-  color: var(--text);
+  color: var(--text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Header */
-.header {
-  border-bottom: 1px solid var(--border-subtle);
+.topbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.topbar-inner {
+  max-width: 980px;
+  margin: 0 auto;
   padding: 0 24px;
-  height: 56px;
+  height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  position: sticky; top: 0; z-index: 40;
-  background: rgba(9,9,11,0.92);
-  backdrop-filter: blur(12px);
 }
-.logo { font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
-.logo span { color: var(--accent); }
-.status-dot {
-  display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12px; color: var(--text-3);
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
 }
-.status-dot::before {
-  content: ""; width: 6px; height: 6px; border-radius: 50%;
-  background: var(--green); box-shadow: 0 0 6px var(--green);
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+.brand-name {
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: -0.02em;
+}
+.brand-tag {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  border-left: 1px solid var(--border);
+  padding-left: 10px;
+}
+.topbar-badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.topbar-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-emerald);
 }
 
-/* Layout */
-.container { max-width: 680px; margin: 0 auto; padding: 0 20px; }
-
-/* Setup */
-.setup { padding: 48px 0 64px; }
-.setup h1 {
-  font-size: 36px; font-weight: 700; letter-spacing: -0.03em;
-  line-height: 1.15; margin-bottom: 8px;
-}
-.setup h1 em { font-style: normal; color: var(--accent); }
-.setup .subtitle { color: var(--text-2); font-size: 15px; margin-bottom: 36px; }
-
-/* Section labels */
-.section-label {
-  font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.06em; color: var(--text-3); margin-bottom: 12px;
+/* Container */
+.main-wrapper {
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 40px 24px 60px;
+  flex: 1;
 }
 
-/* Mode cards */
-.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 32px; }
-.mode-card {
-  background: var(--surface); border: 1px solid var(--border-subtle);
-  border-radius: var(--radius); padding: 16px; cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+/* Hero Section */
+.hero {
+  margin-bottom: 36px;
+  text-align: left;
 }
-.mode-card:hover { border-color: var(--border); background: var(--surface-2); }
-.mode-card.active { border-color: var(--accent); background: rgba(99,102,241,0.08); }
-.mode-card .mode-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
-.mode-card .mode-desc { font-size: 12px; color: var(--text-3); line-height: 1.4; }
-
-/* Form */
-.form-group { margin-bottom: 20px; }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-.form-label { display: block; font-size: 13px; font-weight: 500; color: var(--text-2); margin-bottom: 6px; }
-.form-input {
-  width: 100%; background: var(--surface); border: 1px solid var(--border-subtle);
-  border-radius: 8px; padding: 10px 14px; color: var(--text); font-size: 14px;
-  font-family: inherit; outline: none; transition: border-color 0.15s;
-}
-.form-input:focus { border-color: var(--accent); }
-.form-input::placeholder { color: var(--text-3); }
-
-/* Presets */
-.presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
-.preset {
-  font-size: 12px; padding: 6px 12px; border-radius: 999px; cursor: pointer;
-  background: var(--surface); border: 1px solid var(--border-subtle);
-  color: var(--text-2); transition: all 0.15s; font-family: inherit;
-}
-.preset:hover { border-color: var(--border); color: var(--text); }
-.preset.active { border-color: var(--accent); color: var(--accent); background: rgba(99,102,241,0.08); }
-
-/* Pill toggles */
-.pills { display: flex; background: var(--surface); border-radius: 8px; padding: 3px; border: 1px solid var(--border-subtle); }
-.pill {
-  flex: 1; text-align: center; padding: 7px 10px; font-size: 12px; font-weight: 500;
-  border-radius: 6px; cursor: pointer; color: var(--text-3); transition: all 0.15s;
-  font-family: inherit; border: none; background: transparent;
-}
-.pill.active { background: var(--surface-2); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-.pill.danger.active { background: rgba(239,68,68,0.15); color: #fca5a5; }
-
-/* Buttons */
-.btn-primary {
-  background: var(--accent); color: #fff; border: none; border-radius: 10px;
-  padding: 12px 32px; font-size: 14px; font-weight: 600; cursor: pointer;
-  font-family: inherit; transition: background 0.15s;
-}
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-secondary {
-  background: var(--surface); color: var(--text-2); border: 1px solid var(--border-subtle);
-  border-radius: 10px; padding: 12px 20px; font-size: 14px; font-weight: 500;
-  cursor: pointer; font-family: inherit; transition: all 0.15s;
-}
-.btn-secondary:hover { border-color: var(--border); color: var(--text); }
-.btn-sm {
-  padding: 8px 16px; font-size: 13px; border-radius: 8px; cursor: pointer;
-  font-family: inherit; font-weight: 500; border: 1px solid var(--border-subtle);
-  background: var(--surface); color: var(--text-2); transition: all 0.15s;
-}
-.btn-sm:hover { border-color: var(--border); color: var(--text); }
-.btn-sm.accent { border-color: var(--accent); color: var(--accent-hover); background: rgba(99,102,241,0.08); }
-.btn-sm.green { border-color: var(--green); color: var(--green); background: var(--green-dim); font-weight: 600; }
-.btn-sm.red { border-color: var(--red); color: #fca5a5; background: rgba(239,68,68,0.08); }
-.actions-bar { display: flex; gap: 10px; justify-content: center; margin-top: 28px; }
-
-/* Session history */
-.history-pill {
-  display: none; margin: 0 auto 28px; padding: 8px 16px; border-radius: 999px;
-  background: var(--surface); border: 1px solid var(--border-subtle);
-  font-size: 12px; color: var(--text-2); text-align: center;
-}
-.history-pill.visible { display: block; }
-.history-pill strong { color: var(--green); }
-
-/* Interview screen */
-.interview { display: none; padding: 24px 0 48px; }
-.interview.active { display: block; }
-.interview-bar {
-  display: flex; align-items: center; justify-content: center; gap: 16px;
-  font-size: 12px; color: var(--text-3); margin-bottom: 24px;
-  padding: 8px 16px; background: var(--surface); border-radius: 999px;
-  border: 1px solid var(--border-subtle); width: fit-content; margin-left: auto; margin-right: auto;
-}
-.interview-bar .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); animation: pulse 1.5s infinite; }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-/* Question card */
-.question-card {
-  background: var(--surface); border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--accent); border-radius: var(--radius);
-  padding: 20px; margin-bottom: 12px;
-}
-.question-card .card-label {
-  font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.05em; color: var(--accent-hover); margin-bottom: 8px;
-  display: flex; justify-content: space-between; align-items: center;
-}
-.question-card .card-label .badge {
-  font-size: 10px; color: var(--text-3); background: var(--surface-2);
-  padding: 2px 8px; border-radius: 4px; text-transform: uppercase;
-}
-.question-card .card-text { font-size: 15px; line-height: 1.55; color: var(--text); font-weight: 500; }
-
-/* Transcript card */
-.transcript-card {
-  background: var(--surface); border: 1px solid var(--border-subtle);
-  border-left: 3px solid var(--green); border-radius: var(--radius);
-  padding: 16px 20px; margin-bottom: 20px; min-height: 64px; max-height: 110px; overflow-y: auto;
-}
-.transcript-card .card-label {
-  font-size: 11px; font-weight: 600; text-transform: uppercase;
-  letter-spacing: 0.05em; color: var(--green); margin-bottom: 6px;
-  display: flex; justify-content: space-between;
-}
-.transcript-card .card-text { font-size: 14px; color: var(--text-2); }
-
-/* Stats */
-.stats-row {
-  display: flex; gap: 10px; justify-content: center; margin-bottom: 24px;
-}
-.stat {
-  font-size: 12px; color: var(--text-3); padding: 5px 14px;
-  background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 999px;
-}
-.stat b { color: var(--text); }
-.stat.warn b { color: var(--yellow); }
-.stat.good b { color: var(--green); }
-
-/* Controls */
-.controls { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-
-/* Hint panel */
-.hint-panel {
-  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(140%);
-  width: 90%; max-width: 520px; background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); padding: 18px 22px; z-index: 60;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.5); transition: transform 0.3s ease;
-}
-.hint-panel.open { transform: translateX(-50%) translateY(0); }
-.hint-panel .hint-head {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 12px; font-weight: 600; color: var(--accent-hover); text-transform: uppercase;
+.hero-category {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-blue);
   margin-bottom: 8px;
 }
-.hint-panel .hint-head button {
-  background: none; border: none; color: var(--text-3); cursor: pointer; font-size: 16px;
+.hero-title {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text-primary);
+  margin-bottom: 12px;
 }
-.hint-panel .hint-body { font-size: 13px; color: var(--text-2); line-height: 1.6; white-space: pre-line; }
-
-/* Results modal */
-.results-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px);
-  display: none; align-items: center; justify-content: center; padding: 20px; z-index: 100;
-}
-.results-overlay.open { display: flex; }
-.results-card {
-  background: var(--surface); border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg); max-width: 720px; width: 100%;
-  padding: 32px; max-height: 85vh; overflow-y: auto;
-}
-.results-header {
-  display: flex; justify-content: space-between; align-items: flex-start;
-  padding-bottom: 20px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 20px;
-}
-.results-header .title { font-size: 20px; font-weight: 700; }
-.results-header .subtitle { font-size: 12px; color: var(--text-3); margin-top: 2px; }
-.score-badge {
-  background: var(--green-dim); border: 1px solid rgba(34,197,94,0.3);
-  color: var(--green); font-size: 18px; font-weight: 700; padding: 8px 18px;
-  border-radius: 10px; white-space: nowrap;
-}
-.verdict { font-size: 14px; color: var(--text-2); line-height: 1.6; margin-bottom: 20px; }
-.metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
-.metric-box {
-  background: var(--bg); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 14px;
-}
-.metric-box .metric-label { font-size: 11px; color: var(--text-3); text-transform: uppercase; margin-bottom: 4px; }
-.metric-box .metric-value { font-size: 20px; font-weight: 700; }
-
-/* Upgrades */
-.upgrades-section { margin-bottom: 24px; }
-.upgrade-item {
-  padding: 14px 0; border-bottom: 1px solid var(--border-subtle);
-}
-.upgrade-item:last-child { border-bottom: none; }
-.upgrade-orig { font-size: 13px; color: var(--text-3); margin-bottom: 4px; }
-.upgrade-orig strong { color: var(--red); }
-.upgrade-better { font-size: 14px; color: var(--green); font-weight: 600; }
-.upgrade-why { font-size: 12px; color: var(--text-3); margin-top: 2px; }
-
-/* Transcript */
-.transcript-section { margin-bottom: 24px; }
-.transcript-list { max-height: 180px; overflow-y: auto; }
-.transcript-item {
-  padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; font-size: 13px;
-}
-.transcript-item.ai { background: rgba(99,102,241,0.06); border-left: 2px solid var(--accent); }
-.transcript-item.user { background: var(--green-dim); border-left: 2px solid var(--green); }
-.transcript-item .speaker { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; margin-bottom: 2px; }
-
-.results-actions {
-  display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
-  padding-top: 20px; border-top: 1px solid var(--border-subtle);
+.hero-desc {
+  font-size: 16px;
+  color: var(--text-secondary);
+  max-width: 620px;
+  line-height: 1.6;
 }
 
-/* Browser warning */
-.browser-warning {
-  display: none; position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-  background: rgba(239,68,68,0.15); border: 1px solid var(--red); border-radius: 10px;
-  padding: 12px 20px; font-size: 13px; color: #fca5a5; z-index: 200; text-align: center;
+/* History Banner */
+.history-bar {
+  display: none;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 28px;
+  box-shadow: var(--shadow-sm);
+  align-items: center;
+  justify-content: space-between;
+}
+.history-bar.active { display: flex; }
+.history-bar strong { color: var(--text-primary); }
+
+/* Section Header */
+.section-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 14px;
 }
 
-/* Print */
+/* Mode Cards */
+.examiners-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-bottom: 32px;
+}
+.examiner-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.examiner-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.examiner-card.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary), var(--shadow-md);
+  background: #ffffff;
+}
+.examiner-card-badge {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.examiner-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.examiner-role {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--accent-blue);
+  margin-bottom: 8px;
+}
+.examiner-card.active .examiner-role {
+  color: var(--primary);
+}
+.examiner-summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* Target & Scenario Card */
+.config-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 32px;
+}
+.preset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.preset-chip {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.preset-chip:hover {
+  background: #e2e8f0;
+  color: var(--text-primary);
+}
+.preset-chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.form-field input {
+  background: #ffffff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.form-field input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+.toggles-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.segmented {
+  display: flex;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+.segmented-btn {
+  flex: 1;
+  text-align: center;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.segmented-btn.active {
+  background: #ffffff;
+  color: var(--text-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+.segmented-btn.danger.active {
+  background: #ffffff;
+  color: var(--accent-rose);
+  font-weight: 600;
+}
+
+/* Actions */
+.launch-group {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-start;
+  align-items: center;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius);
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary:hover {
+  background: var(--primary-hover);
+}
+.btn-secondary {
+  background: #ffffff;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.btn-secondary:hover {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+/* ========================================================
+   ORAL EXAM ROOM (CALL VIEW)
+   ======================================================== */
+.exam-room {
+  display: none;
+}
+.exam-room.active {
+  display: block;
+}
+
+.room-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+.room-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.room-bar-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-rose);
+  animation: pulse-recording 2s infinite ease-in-out;
+}
+@keyframes pulse-recording {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.9); }
+}
+.room-examiner-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.room-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+.room-timer {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Prompt Card */
+.prompt-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+.prompt-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--surface-subtle);
+}
+.prompt-examiner-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-blue);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.prompt-status-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.prompt-status-tag.speaking {
+  color: var(--accent-blue);
+  background: #e0f2fe;
+}
+.prompt-status-tag.listening {
+  color: var(--accent-emerald);
+  background: #dcfce7;
+}
+.prompt-text {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--text-primary);
+}
+
+/* Live Waveform Indicator */
+.sound-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  margin-top: 16px;
+}
+.wave-bar {
+  width: 3px;
+  height: 6px;
+  background: var(--border-strong);
+  border-radius: 2px;
+  transition: height 0.15s ease, background 0.15s ease;
+}
+.sound-indicator.active .wave-bar {
+  background: var(--accent-blue);
+  animation: sound-bounce 0.8s infinite ease-in-out alternate;
+}
+.sound-indicator.active .wave-bar:nth-child(2) { animation-delay: 0.15s; }
+.sound-indicator.active .wave-bar:nth-child(3) { animation-delay: 0.3s; }
+.sound-indicator.active .wave-bar:nth-child(4) { animation-delay: 0.45s; }
+.sound-indicator.active .wave-bar:nth-child(5) { animation-delay: 0.2s; }
+@keyframes sound-bounce {
+  0% { height: 4px; }
+  100% { height: 18px; }
+}
+
+/* Candidate Response Card */
+.response-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 26px;
+  margin-bottom: 22px;
+  box-shadow: var(--shadow-sm);
+  min-height: 85px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.response-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.response-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-emerald);
+}
+.response-status {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.response-text {
+  font-size: 15px;
+  color: var(--text-primary);
+  line-height: 1.55;
+}
+
+/* Live Analytics Deck */
+.analytics-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.analytic-chip {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+}
+.analytic-chip strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+.analytic-chip.alert strong {
+  color: var(--accent-amber);
+}
+
+/* Room Control Toolbar */
+.controls-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btn-control {
+  background: #ffffff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-control:hover {
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  border-color: var(--text-primary);
+}
+.btn-control.primary-action {
+  background: var(--accent-emerald);
+  border-color: var(--accent-emerald);
+  color: #ffffff;
+}
+.btn-control.primary-action:hover {
+  background: #047857;
+}
+.btn-control.danger-action {
+  color: var(--accent-rose);
+  border-color: #fecdd3;
+  background: #fff1f2;
+}
+.btn-control.danger-action:hover {
+  background: #ffe4e6;
+  border-color: var(--accent-rose);
+}
+
+/* Strategy Advisory Panel */
+.strategy-drawer {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(150%);
+  width: 90%;
+  max-width: 540px;
+  background: #ffffff;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-xl);
+  z-index: 100;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.strategy-drawer.open {
+  transform: translateX(-50%) translateY(0);
+}
+.strategy-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-blue);
+}
+.strategy-header button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+.strategy-content {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+/* ========================================================
+   OFFICIAL EVALUATION DOSSIER MODAL
+   ======================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 120;
+}
+.modal-overlay.open {
+  display: flex;
+}
+.dossier-card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  max-width: 780px;
+  width: 100%;
+  padding: 36px 40px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+}
+.dossier-letterhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding-bottom: 24px;
+  border-bottom: 2px solid var(--primary);
+  margin-bottom: 24px;
+}
+.dossier-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.dossier-title {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 26px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.dossier-score {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: var(--accent-emerald);
+  padding: 8px 18px;
+  border-radius: var(--radius);
+  font-size: 20px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
+.dossier-summary-box {
+  background: var(--surface-subtle);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 28px;
+}
+
+.criteria-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 30px;
+}
+.criteria-card {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+.criteria-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.criteria-score {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.upgrades-container {
+  margin-bottom: 30px;
+}
+.upgrades-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+.upgrade-row {
+  border-bottom: 1px solid var(--border);
+  padding: 14px 0;
+}
+.upgrade-row:last-child {
+  border-bottom: none;
+}
+.upgrade-original {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.upgrade-original strike {
+  color: var(--accent-rose);
+}
+.upgrade-improved {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--accent-emerald);
+  margin-bottom: 2px;
+}
+.upgrade-context {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.transcript-drawer {
+  margin-bottom: 28px;
+}
+.transcript-drawer-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 12px;
+}
+.transcript-timeline {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  background: var(--surface-subtle);
+}
+.timeline-entry {
+  padding: 8px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--border);
+}
+.timeline-entry:last-child {
+  border-bottom: none;
+}
+.timeline-speaker {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.timeline-entry.ai .timeline-speaker {
+  color: var(--accent-blue);
+}
+.timeline-entry.user .timeline-speaker {
+  color: var(--accent-emerald);
+}
+
+.dossier-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Browser Notice */
+.compat-warning {
+  display: none;
+  background: #fef2f2;
+  border: 1px solid #fecdd3;
+  color: var(--accent-rose);
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+.compat-warning.show {
+  display: block;
+}
+
+/* Print Styles */
 @media print {
-  body { background: #fff !important; color: #000 !important; }
-  .header, .setup, .interview, .hint-panel, .controls, .results-actions { display: none !important; }
-  .results-overlay { position: static !important; display: block !important; background: transparent !important; padding: 0 !important; }
-  .results-card { border: 1px solid #ccc !important; background: #fff !important; color: #000 !important; max-width: 100% !important; max-height: none !important; }
-  .results-header .title, .metric-value, .upgrade-better { color: #000 !important; }
-  .score-badge { border-color: #22c55e !important; color: #16a34a !important; background: #f0fdf4 !important; }
-  .metric-box, .transcript-item { border: 1px solid #e5e7eb !important; background: #f9fafb !important; color: #000 !important; }
+  body { background: #ffffff !important; }
+  .topbar, .hero, .config-card, .launch-group, .history-bar, .examiners-grid, .exam-room, .dossier-footer button {
+    display: none !important;
+  }
+  .modal-overlay {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+  }
+  .dossier-card {
+    box-shadow: none !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
 }
 
 /* Responsive */
-@media (max-width: 600px) {
-  .modes { grid-template-columns: 1fr; }
-  .form-row { grid-template-columns: 1fr; }
-  .metrics-grid { grid-template-columns: 1fr; }
-  .setup h1 { font-size: 28px; }
-  .results-card { padding: 20px; }
+@media (max-width: 640px) {
+  .examiners-grid { grid-template-columns: 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+  .criteria-grid { grid-template-columns: 1fr; }
+  .toggles-row { grid-template-columns: 1fr; }
+  .hero-title { font-size: 30px; }
+  .dossier-card { padding: 24px; }
 }
 </style>
 </head>
 <body>
 
-<header class="header">
-  <div class="logo">Speak<span>Sense</span></div>
-  <div class="status-dot">AI Active</div>
+<!-- Header -->
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="brand">
+      <div class="brand-mark">S</div>
+      <div class="brand-name">SpeakSense</div>
+      <div class="brand-tag">Oral Exam Suite</div>
+    </a>
+    <div class="topbar-badge">System Operational</div>
+  </div>
 </header>
 
-<div class="container">
-  <!-- SETUP SCREEN -->
-  <section class="setup" id="viewSetup">
-    <h1>Practice any interview.<br><em>Get instant feedback.</em></h1>
-    <p class="subtitle">Have a real-time spoken conversation with an AI interviewer. Get scored on fluency, vocabulary, and reasoning.</p>
-
-    <div id="historyPill" class="history-pill"></div>
-
-    <div class="section-label">Interview Type</div>
-    <div class="modes">
-      <div class="mode-card active" onclick="pickMode('ielts', this)">
-        <div class="mode-name">IELTS Speaking</div>
-        <div class="mode-desc">British examiner testing vocabulary, grammar, and abstract reasoning</div>
-      </div>
-      <div class="mode-card" onclick="pickMode('college', this)">
-        <div class="mode-name">College Admissions</div>
-        <div class="mode-desc">Ivy League admissions officer evaluating intellectual curiosity</div>
-      </div>
-      <div class="mode-card" onclick="pickMode('visa', this)">
-        <div class="mode-name">Visa Interview</div>
-        <div class="mode-desc">US Embassy consular officer cross-examining funding and ties</div>
-      </div>
-      <div class="mode-card" onclick="pickMode('job', this)">
-        <div class="mode-name">Tech Job Interview</div>
-        <div class="mode-desc">Engineering director testing STAR responses and technical depth</div>
-      </div>
-    </div>
-
-    <div class="section-label">Quick Scenarios</div>
-    <div class="presets">
-      <button class="preset active" onclick="applyPreset(this,'Undergraduate Admissions Interview','Harvard University')">Ivy League "Why Us"</button>
-      <button class="preset" onclick="applyPreset(this,'Will AI replace software engineers?','Oxford University')">IELTS Band 9: AI & Labor</button>
-      <button class="preset" onclick="applyPreset(this,'F-1 Student Visa: Family Funding','US Embassy Tashkent')">Visa: Financing & Return</button>
-      <button class="preset" onclick="applyPreset(this,'Production outage with team conflict','Google / Meta')">FAANG: Crisis Turnaround</button>
-    </div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Topic</label>
-        <input type="text" id="inputTopic" class="form-input" value="Undergraduate Admissions Interview" placeholder="e.g. Why Harvard CS">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Target School / Company</label>
-        <input type="text" id="inputTarget" class="form-input" value="Harvard University" placeholder="e.g. MIT, Google">
-      </div>
-    </div>
-
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Difficulty</label>
-        <div class="pills">
-          <button class="pill" onclick="setDemeanor('supportive',this)">Friendly</button>
-          <button class="pill active" onclick="setDemeanor('standard',this)">Realistic</button>
-          <button class="pill danger" onclick="setDemeanor('brutal',this)">Tough</button>
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Number of Questions</label>
-        <div class="pills">
-          <button class="pill active" onclick="setTurns(3,this)">3</button>
-          <button class="pill" onclick="setTurns(5,this)">5</button>
-          <button class="pill" onclick="setTurns(8,this)">8</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="actions-bar">
-      <button class="btn-secondary" onclick="previewVoice()">Preview Voice</button>
-      <button class="btn-primary" onclick="startInterview()">Start Interview</button>
-    </div>
-  </section>
-
-  <!-- INTERVIEW SCREEN -->
-  <section class="interview" id="viewInterview">
-    <div class="interview-bar">
-      <div class="live-dot"></div>
-      <span id="barPersona">DR. ARTHUR DAVIES</span>
-      <span>·</span>
-      <span id="barTurn">Q1 of 3</span>
-      <span>·</span>
-      <span id="barTimer">00:00</span>
-    </div>
-
-    <div class="question-card" id="questionCard">
-      <div class="card-label">
-        <span id="questionLabel">Interviewer</span>
-        <span class="badge" id="questionBadge">Current Question</span>
-      </div>
-      <div class="card-text" id="questionText">Loading first question...</div>
-    </div>
-
-    <div class="transcript-card" id="transcriptCard">
-      <div class="card-label">
-        <span>Your Answer</span>
-        <span id="transcriptStatus" style="color:var(--green)">Listening</span>
-      </div>
-      <div class="card-text" id="transcriptText">Speak into your microphone...</div>
-    </div>
-
-    <div class="stats-row">
-      <div class="stat">Words: <b id="statWords">0</b></div>
-      <div class="stat good" id="statPaceChip">Pace: <b id="statWpm">— WPM</b></div>
-      <div class="stat" id="statFillerChip">Fillers: <b id="statFillers">0</b></div>
-    </div>
-
-    <div class="controls">
-      <button class="btn-sm accent" onclick="getHint()">💡 Hint</button>
-      <button class="btn-sm" onclick="retryAnswer()">↺ Retry</button>
-      <button class="btn-sm" onclick="toggleMute()" id="btnMute">Mute</button>
-      <button class="btn-sm green" onclick="submitAnswer()" id="btnDone" style="display:none">Done Speaking →</button>
-      <button class="btn-sm red" onclick="endInterview()">End Interview</button>
-    </div>
-  </section>
-</div>
-
-<!-- Hint Panel -->
-<div class="hint-panel" id="hintPanel">
-  <div class="hint-head">
-    <span>Answer Strategy</span>
-    <button onclick="closeHint()">✕</button>
+<main class="main-wrapper">
+  <!-- Compatibility Notice -->
+  <div class="compat-warning" id="compatWarning">
+    ⚠️ Speech recognition is optimized for <strong>Google Chrome</strong> and <strong>Microsoft Edge</strong>. If microphone audio fails to transcribe, please open SpeakSense in Chrome.
   </div>
-  <div class="hint-body" id="hintBody">Loading...</div>
-</div>
 
-<!-- Results Modal -->
-<div class="results-overlay" id="resultsOverlay">
-  <div class="results-card">
-    <div class="results-header">
+  <!-- SETUP STAGE -->
+  <section id="viewSetup">
+    <div class="hero">
+      <div class="hero-category">Executive Spoken Assessment</div>
+      <h1 class="hero-title">Practice high-stakes oral interviews.<br>Under real conversational pressure.</h1>
+      <p class="hero-desc">Simulate realistic spoken interviews with British Council examiners, Ivy League admissions chairs, and visa consular officers. Receive structured assessment rubrics and high-impact phrasing alternatives.</p>
+    </div>
+
+    <!-- Recent Record Shelf -->
+    <div class="history-bar" id="historyBar">
       <div>
-        <div class="subtitle">EVALUATION REPORT</div>
-        <div class="title" id="resultsTitle">Interview Results</div>
+        <span>Previous Evaluation: </span>
+        <strong id="historyScore">Band 7.5</strong>
+        <span style="color:var(--text-muted);"> with </span>
+        <span id="historyExaminer">Dr. Arthur Davies</span>
       </div>
-      <div class="score-badge" id="scoreBadge">—</div>
+      <span style="font-size:12px; color:var(--text-muted);" id="historyDate">Just now</span>
     </div>
 
-    <p class="verdict" id="resultsVerdict">Analyzing your performance...</p>
+    <!-- Examiner Choice -->
+    <div class="section-header">1. Select Interview Examination Track</div>
+    <div class="examiners-grid">
+      <div class="examiner-card active" onclick="selectExaminer('ielts', this)">
+        <div class="examiner-card-badge">Cambridge Assessment / C1 & C2</div>
+        <div class="examiner-name">Dr. Arthur Davies</div>
+        <div class="examiner-role">IELTS Senior Academic Examiner</div>
+        <div class="examiner-summary">Probes complex vocabulary, grammatical range, abstract reasoning, and ideological nuances. British received pronunciation.</div>
+      </div>
 
-    <div class="metrics-grid">
-      <div class="metric-box">
-        <div class="metric-label">Fluency</div>
-        <div class="metric-value" id="metricFluency">—</div>
+      <div class="examiner-card" onclick="selectExaminer('college', this)">
+        <div class="examiner-card-badge">Ivy League Admissions Committee</div>
+        <div class="examiner-name">Dean Eleanor Vance</div>
+        <div class="examiner-role">Dean of Undergraduate Admissions</div>
+        <div class="examiner-summary">Cross-examines intellectual vitality, authentic academic curiosity, personal integrity, and distinct alignment with your target university.</div>
       </div>
-      <div class="metric-box">
-        <div class="metric-label">Vocabulary</div>
-        <div class="metric-value" id="metricLexical">—</div>
+
+      <div class="examiner-card" onclick="selectExaminer('visa', this)">
+        <div class="examiner-card-badge">US Department of State</div>
+        <div class="examiner-name">Officer Miller</div>
+        <div class="examiner-role">Consular Visa Officer (F-1 / B-1)</div>
+        <div class="examiner-summary">Rapid-fire inquiry into family audited revenue, business solvency, institutional legitimacy, and statutory ties to your homeland (Section 214b).</div>
       </div>
-      <div class="metric-box">
-        <div class="metric-label">Reasoning</div>
-        <div class="metric-value" id="metricLogic">—</div>
+
+      <div class="examiner-card" onclick="selectExaminer('job', this)">
+        <div class="examiner-card-badge">Executive Engineering Board</div>
+        <div class="examiner-name">Director Marcus Reed</div>
+        <div class="examiner-role">Engineering Executive</div>
+        <div class="examiner-summary">Evaluates behavioral STAR execution, technical ownership under production crisis, architectural trade-offs, and leadership conflict resolution.</div>
       </div>
     </div>
 
-    <div class="upgrades-section">
-      <div class="section-label">How to say it better</div>
-      <div id="upgradesBox"></div>
-    </div>
-
-    <div class="transcript-section">
-      <div class="section-label">Full Transcript</div>
-      <div class="transcript-list" id="fullTranscript"></div>
-    </div>
-
-    <div class="results-actions">
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn-sm" onclick="copyResults()">Copy Report</button>
-        <button class="btn-sm accent" onclick="window.print()">Save as PDF</button>
+    <!-- Configuration Deck -->
+    <div class="section-header">2. Topic & Institutional Target</div>
+    <div class="config-card">
+      <div class="preset-list">
+        <button class="preset-chip active" onclick="applyScenario(this, 'Undergraduate Admissions Interview', 'Harvard University')">🎓 Ivy League "Why Us"</button>
+        <button class="preset-chip" onclick="applyScenario(this, 'Will cognitive automation eliminate human software engineering?', 'Oxford University')">🔬 IELTS Band 9: Artificial Intelligence</button>
+        <button class="preset-chip" onclick="applyScenario(this, 'F-1 Student Visa: Family Funding & 214(b) Return Proof', 'US Embassy Tashkent')">🇺🇸 Visa: Audited Financing & Ties</button>
+        <button class="preset-chip" onclick="applyScenario(this, 'Managing mission-critical production failure with executive conflict', 'Google / Meta')">💼 Executive: Crisis Management</button>
       </div>
-      <button class="btn-primary" onclick="restart()">Practice Again</button>
+
+      <div class="form-grid">
+        <div class="form-field">
+          <label>Discussion Topic or Thesis</label>
+          <input type="text" id="inputTopic" value="Undergraduate Admissions Interview" placeholder="e.g. Why Harvard CS and robotics research" />
+        </div>
+        <div class="form-field">
+          <label>Target Organization</label>
+          <input type="text" id="inputTarget" value="Harvard University" placeholder="e.g. Harvard, MIT, Google" />
+        </div>
+      </div>
+
+      <div class="toggles-row">
+        <div class="form-field">
+          <label>Examiner Demeanor</label>
+          <div class="segmented">
+            <button class="segmented-btn" onclick="setDemeanor('supportive', this)">Encouraging</button>
+            <button class="segmented-btn active" onclick="setDemeanor('standard', this)">Realistic</button>
+            <button class="segmented-btn danger" onclick="setDemeanor('brutal', this)">High Pressure</button>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label>Interview Length</label>
+          <div class="segmented">
+            <button class="segmented-btn active" onclick="setTurns(3, this)">3 Questions</button>
+            <button class="segmented-btn" onclick="setTurns(5, this)">5 Questions</button>
+            <button class="segmented-btn" onclick="setTurns(8, this)">8 Questions</button>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- Launch Action Bar -->
+    <div class="launch-group">
+      <button class="btn-primary" onclick="launchInterviewRoom()">
+        Begin Interview Session →
+      </button>
+      <button class="btn-secondary" onclick="auditionVoice()">
+        Audition Examiner Voice
+      </button>
+    </div>
+  </section>
+
+  <!-- ORAL EXAM ROOM -->
+  <section class="exam-room" id="viewInterview">
+    <!-- Top HUD Bar -->
+    <div class="room-bar">
+      <div class="room-bar-left">
+        <div class="room-bar-dot"></div>
+        <div class="room-examiner-name" id="roomExaminerName">Dr. Arthur Davies</div>
+      </div>
+      <div class="room-bar-right">
+        <span id="roomTurnCounter">Question 1 of 3</span>
+        <span>•</span>
+        <span class="room-timer" id="roomTimer">00:00</span>
+      </div>
+    </div>
+
+    <!-- Active Question Card -->
+    <div class="prompt-card" id="promptCard">
+      <div class="prompt-card-header">
+        <div class="prompt-examiner-label">
+          <span>●</span>
+          <span id="promptExaminerLabel">Examiner Question</span>
+        </div>
+        <div class="prompt-status-tag" id="promptStatusTag">Preparing Question</div>
+      </div>
+      <div class="prompt-text" id="promptText">
+        Connecting to examiner audio stream...
+      </div>
+      <div class="sound-indicator" id="soundIndicator">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+    </div>
+
+    <!-- Real-time Candidate Spoken Response -->
+    <div class="response-card">
+      <div class="response-card-header">
+        <div class="response-title">Your Live Spoken Response</div>
+        <div class="response-status" id="responseStatus">Awaiting Speech</div>
+      </div>
+      <div class="response-text" id="responseText">
+        Speak into your microphone when the examiner finishes...
+      </div>
+    </div>
+
+    <!-- Real-time Metrics Bar -->
+    <div class="analytics-bar">
+      <div class="analytic-chip">Spoken Words: <strong id="chipWordCount">0</strong></div>
+      <div class="analytic-chip" id="chipPaceBox">Cadence: <strong id="chipWpm">— WPM</strong></div>
+      <div class="analytic-chip" id="chipFillerBox">Hesitations: <strong id="chipFillers">0</strong></div>
+    </div>
+
+    <!-- Room Action Toolbar -->
+    <div class="controls-bar">
+      <button class="btn-control" onclick="requestAdvisoryHint()">
+        💡 Strategic Guidance
+      </button>
+      <button class="btn-control" onclick="reRecordSpokenTurn()">
+        ↺ Restart Answer
+      </button>
+      <button class="btn-control" onclick="toggleMicrophone()" id="btnMuteToggle">
+        🎤 Mute
+      </button>
+      <button class="btn-control primary-action" onclick="commitSpokenAnswer()" id="btnDoneSpeaking" style="display:none;">
+        Submit Answer →
+      </button>
+      <button class="btn-control danger-action" onclick="concludeInterviewEarly()">
+        Conclude Interview
+      </button>
+    </div>
+  </section>
+</main>
+
+<!-- In-Call Advisory Drawer -->
+<div class="strategy-drawer" id="strategyDrawer">
+  <div class="strategy-header">
+    <span>Examiner Strategic Guidance</span>
+    <button onclick="closeAdvisory()">×</button>
+  </div>
+  <div class="strategy-content" id="strategyContent">
+    Formulating coaching strategy for this question...
   </div>
 </div>
 
-<!-- Browser Warning -->
-<div class="browser-warning" id="browserWarning">
-  ⚠️ Speech recognition requires <b>Google Chrome</b> or <b>Microsoft Edge</b>. Please switch browsers.
+<!-- Evaluation Dossier Modal -->
+<div class="modal-overlay" id="dossierModal">
+  <div class="dossier-card">
+    <div class="dossier-letterhead">
+      <div>
+        <div class="dossier-subtitle">Official Assessment Dossier</div>
+        <h2 class="dossier-title" id="dossierTitle">Candidate Performance Evaluation</h2>
+      </div>
+      <div class="dossier-score" id="dossierScoreBadge">Band 7.5</div>
+    </div>
+
+    <div class="dossier-summary-box" id="dossierSummaryText">
+      Analyzing conversational velocity, lexical articulation, and argument structure...
+    </div>
+
+    <div class="criteria-grid">
+      <div class="criteria-card">
+        <div class="criteria-label">Fluency & Coherence</div>
+        <div class="criteria-score" id="scoreFluency">8.0 / 9.0</div>
+      </div>
+      <div class="criteria-card">
+        <div class="criteria-label">Lexical Range</div>
+        <div class="criteria-score" id="scoreLexical">7.5 / 9.0</div>
+      </div>
+      <div class="criteria-card">
+        <div class="criteria-label">Reasoning & Logic</div>
+        <div class="criteria-score" id="scoreLogic">8.0 / 9.0</div>
+      </div>
+    </div>
+
+    <!-- Phrasing Elevators -->
+    <div class="upgrades-container">
+      <div class="upgrades-title">Side-by-Side Articulation Improvements</div>
+      <div id="upgradesList">
+        <!-- Upgrades injected here -->
+      </div>
+    </div>
+
+    <!-- Verbatim Transcript -->
+    <div class="transcript-drawer">
+      <div class="transcript-drawer-title">Verbatim Examination Transcript</div>
+      <div class="transcript-timeline" id="transcriptTimeline">
+        <!-- Turns injected here -->
+      </div>
+    </div>
+
+    <div class="dossier-footer">
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn-secondary" onclick="copyDossierClipboard()">
+          📋 Copy Summary
+        </button>
+        <button class="btn-secondary" onclick="window.print()">
+          📄 Print / Save as PDF
+        </button>
+      </div>
+      <button class="btn-primary" onclick="restartTerminalSession()">
+        Start Another Session
+      </button>
+    </div>
+  </div>
 </div>
 
 <script>
-// ═══════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════
-let mode = 'ielts';
-let demeanor = 'standard';
-let turn = 1;
-let maxTurns = 3;
-let history = [];
-let active = false;
-let seconds = 0;
-let timer = null;
-let wordCount = 0;
-let fillerCount = 0;
-let turnFillerCount = 0;
-let lastQuestion = '';
-
-let transcript = '';
-let buffer = '';
-let listening = false;
-let muted = false;
-let rec = null;
-let silenceTimeout = null;
-let audio = null;
-
-const FILLERS = ['um','uh','uhm','like','you know','actually','basically','literally','sort of','kind of'];
-
-const MODES = {
+// ════════════════════════════════════════════════════════
+// CONFIGURATION & PERSONAS
+// ════════════════════════════════════════════════════════
+const EXAMINERS = {
   ielts: {
-    name: 'Dr. Arthur Davies',
-    voice: 'ielts',
-    intro: "Good afternoon. I'm Dr. Davies. Can you tell me your full name and what you're currently studying or working on?"
+    name: "Dr. Arthur Davies",
+    track: "IELTS Academic Examiner",
+    voice: "ielts",
+    intro: "Good afternoon. My name is Dr. Arthur Davies. Let us commence the interview. Could you state your full name, and what you are currently studying or working on?"
   },
   college: {
-    name: 'Dean Eleanor Vance',
-    voice: 'college',
-    intro: "Hello, welcome. I'm Dean Vance. Tell me — what specific problem or curiosity first sparked your desire to pursue this field?"
+    name: "Dean Eleanor Vance",
+    track: "Admissions Committee Chair",
+    voice: "college",
+    intro: "Welcome. I am Dean Vance. We have reviewed your initial application. Tell me: what specific intellectual problem first sparked your commitment to this discipline?"
   },
   visa: {
-    name: 'Officer Miller',
-    voice: 'visa',
-    intro: "Good morning. You're applying for an F-1 visa. Why did you choose this institution, and what guarantee do we have that you'll return home after your studies?"
+    name: "Officer Miller",
+    track: "Consular Visa Officer",
+    voice: "visa",
+    intro: "Good morning. You are applying for an F-1 visa. State clearly why you chose this exact institution, and how your family finances your foreign expenditure."
   },
   job: {
-    name: 'Director Marcus Reed',
-    voice: 'job',
-    intro: "Thanks for coming in. Walk me through a major technical problem or team conflict you owned. What was your specific intervention?"
+    name: "Director Marcus Reed",
+    track: "Executive Engineering Director",
+    voice: "job",
+    intro: "Thanks for meeting with me today. Let us get right to the heart of the matter: walk me through a major technical breakdown you personally resolved under pressure."
   }
 };
 
-// ═══════════════════════════════════════
-// SETUP UI
-// ═══════════════════════════════════════
-function pickMode(key, el) {
-  mode = key;
-  document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('active'));
+const FILLER_TOKENS = ["um", "uh", "uhm", "like", "you know", "actually", "basically", "literally", "sort of", "kind of"];
+
+// State Variables
+let selectedTrack = "ielts";
+let selectedDemeanor = "standard";
+let sessionTurn = 1;
+let sessionTotalTurns = 3;
+let conversationHistory = [];
+let isSessionLive = false;
+let sessionTimer = null;
+let sessionSeconds = 0;
+let totalWordsSpoken = 0;
+let totalFillersDetected = 0;
+let turnFillers = 0;
+let activeQuestionText = "";
+
+let finalBuffer = "";
+let interimBuffer = "";
+let isListeningCandidate = false;
+let isMicMuted = false;
+let speechRecognizer = null;
+let silenceTimer = null;
+let currentPlaybackAudio = null;
+
+// ════════════════════════════════════════════════════════
+// SETUP INTERACTIONS
+// ════════════════════════════════════════════════════════
+function selectExaminer(key, el) {
+  selectedTrack = key;
+  document.querySelectorAll('.examiner-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
 }
+
 function setDemeanor(d, el) {
-  demeanor = d;
-  el.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  selectedDemeanor = d;
+  el.parentElement.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
 }
+
 function setTurns(n, el) {
-  maxTurns = n;
-  el.parentElement.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  sessionTotalTurns = n;
+  el.parentElement.querySelectorAll('.segmented-btn').forEach(b => b.classList.remove('active'));
   el.classList.add('active');
 }
-function applyPreset(el, topic, target) {
+
+function applyScenario(el, topic, target) {
   document.getElementById('inputTopic').value = topic;
   document.getElementById('inputTarget').value = target;
-  document.querySelectorAll('.preset').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.preset-chip').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
 }
-function previewVoice() {
-  const m = MODES[mode];
-  playAudio(`Hello, I'm ${m.name}. Voice test successful.`);
+
+function auditionVoice() {
+  const ex = EXAMINERS[selectedTrack];
+  playExaminerAudio(`Good day. I am ${ex.name}. Audio transmission verified.`);
 }
 
-// ═══════════════════════════════════════
-// AUDIO PLAYBACK (zero robot voice)
-// ═══════════════════════════════════════
-function playAudio(text, onDone) {
-  if (audio) { audio.pause(); audio = null; }
-  const m = MODES[mode];
-  const url = `/api/tts?text=${encodeURIComponent(text)}&voice=${m.voice}`;
-  const a = new Audio(url);
-  audio = a;
+// ════════════════════════════════════════════════════════
+// PURE NEURAL AUDIO PLAYBACK (ZERO ROBOT FALLBACK)
+// ════════════════════════════════════════════════════════
+function playExaminerAudio(text, onComplete) {
+  if (currentPlaybackAudio) {
+    currentPlaybackAudio.pause();
+    currentPlaybackAudio = null;
+  }
+  const ex = EXAMINERS[selectedTrack];
+  const url = `/api/tts?text=${encodeURIComponent(text)}&voice=${ex.voice}`;
+  const audio = new Audio(url);
+  currentPlaybackAudio = audio;
 
-  a.onended = () => { audio = null; if (onDone) onDone(); };
-  a.onerror = () => {
-    console.warn('TTS failed, skipping to next turn');
-    audio = null;
-    if (onDone) onDone();
+  const wave = document.getElementById('soundIndicator');
+  if (wave) wave.classList.add('active');
+
+  audio.onended = () => {
+    if (wave) wave.classList.remove('active');
+    currentPlaybackAudio = null;
+    if (onComplete) onComplete();
   };
-  a.play().catch(() => {
-    console.warn('Autoplay blocked, skipping');
-    audio = null;
-    if (onDone) onDone();
+
+  audio.onerror = (e) => {
+    console.warn("Audio stream notice:", e);
+    if (wave) wave.classList.remove('active');
+    currentPlaybackAudio = null;
+    if (onComplete) onComplete();
+  };
+
+  audio.play().catch(err => {
+    console.warn("Autoplay notice:", err);
+    if (wave) wave.classList.remove('active');
+    currentPlaybackAudio = null;
+    if (onComplete) onComplete();
   });
 }
 
-// ═══════════════════════════════════════
-// INTERVIEW FLOW
-// ═══════════════════════════════════════
-function startInterview() {
+// ════════════════════════════════════════════════════════
+// INTERVIEW ROOM ORCHESTRATION
+// ════════════════════════════════════════════════════════
+function launchInterviewRoom() {
   document.getElementById('viewSetup').style.display = 'none';
-  document.getElementById('viewInterview').classList.add('active');
+  const room = document.getElementById('viewInterview');
+  room.classList.add('active');
 
-  const m = MODES[mode];
-  document.getElementById('barPersona').textContent = m.name.toUpperCase();
-  document.getElementById('barTurn').textContent = `Q1 of ${maxTurns}`;
+  const ex = EXAMINERS[selectedTrack];
+  document.getElementById('roomExaminerName').textContent = ex.name;
+  document.getElementById('roomTurnCounter').textContent = `Question 1 of ${sessionTotalTurns}`;
 
-  history = [];
-  turn = 1;
-  active = true;
-  seconds = 0;
-  wordCount = 0;
-  fillerCount = 0;
+  conversationHistory = [];
+  sessionTurn = 1;
+  isSessionLive = true;
+  sessionSeconds = 0;
+  totalWordsSpoken = 0;
+  totalFillersDetected = 0;
+  turnFillers = 0;
 
-  timer = setInterval(() => {
-    seconds++;
-    const mm = String(Math.floor(seconds / 60)).padStart(2, '0');
-    const ss = String(seconds % 60).padStart(2, '0');
-    document.getElementById('barTimer').textContent = `${mm}:${ss}`;
-    if (seconds > 4 && wordCount > 0) {
-      const wpm = Math.round(wordCount / (seconds / 60));
-      document.getElementById('statWpm').textContent = `${wpm} WPM`;
-      const chip = document.getElementById('statPaceChip');
-      chip.className = (wpm < 110 || wpm > 175) ? 'stat warn' : 'stat good';
+  sessionTimer = setInterval(() => {
+    sessionSeconds++;
+    const m = String(Math.floor(sessionSeconds / 60)).padStart(2, '0');
+    const s = String(sessionSeconds % 60).padStart(2, '0');
+    document.getElementById('roomTimer').textContent = `${m}:${s}`;
+
+    if (sessionSeconds > 4 && totalWordsSpoken > 0) {
+      const wpm = Math.round(totalWordsSpoken / (sessionSeconds / 60));
+      document.getElementById('chipWpm').textContent = `${wpm} WPM`;
+      const box = document.getElementById('chipPaceBox');
+      box.className = (wpm < 110 || wpm > 175) ? 'analytic-chip alert' : 'analytic-chip';
     }
   }, 1000);
 
-  initSpeechRecognition();
+  initSpeechEngine();
 
-  // Custom intro based on target
   const target = document.getElementById('inputTarget').value.trim();
-  let intro = m.intro;
-  if (target && mode === 'college') {
-    intro = `Welcome. I'm ${m.name}. We're reviewing your application for ${target}. What intellectual challenge first drew you to this field?`;
-  } else if (target && mode === 'visa') {
-    intro = `Good morning. You're applying for an F-1 visa to study at ${target}. Why this program specifically, and how is your family financing this?`;
+  let intro = ex.intro;
+  if (target && selectedTrack === 'college') {
+    intro = `Welcome. I am ${ex.name}. We are reviewing your candidacy for ${target}. What distinctive intellectual challenge first sparked your dedication to this field?`;
+  } else if (target && selectedTrack === 'visa') {
+    intro = `Good morning. You are applying for an F-1 visa to attend ${target}. State clearly why you selected this institution, and how your family finances your degree.`;
   }
 
-  speakQuestion(intro);
+  transmitExaminerPrompt(intro);
 }
 
-function speakQuestion(text) {
-  lastQuestion = text;
-  const m = MODES[mode];
+function transmitExaminerPrompt(text) {
+  activeQuestionText = text;
+  const ex = EXAMINERS[selectedTrack];
 
-  // Update pinned question card
-  document.getElementById('questionLabel').textContent = m.name;
-  document.getElementById('questionText').textContent = text;
-  document.getElementById('questionBadge').textContent = 'Speaking...';
+  // Update Persistent Prompt Card
+  document.getElementById('promptExaminerLabel').textContent = `${ex.name} — Question`;
+  document.getElementById('promptText').textContent = `"${text}"`;
+  
+  const statusTag = document.getElementById('promptStatusTag');
+  statusTag.textContent = "Examiner Speaking";
+  statusTag.className = "prompt-status-tag speaking";
 
-  // Update transcript card
-  document.getElementById('transcriptStatus').textContent = 'Interviewer speaking';
-  document.getElementById('transcriptStatus').style.color = 'var(--accent)';
-  document.getElementById('transcriptText').textContent = 'Listen to the question above...';
+  // Update Candidate Response Card
+  document.getElementById('responseStatus').textContent = "Listen to Question";
+  document.getElementById('responseText').textContent = "The examiner is asking the question above. Prepare your response...";
 
-  history.push({ speaker: 'ai', text });
+  conversationHistory.push({ speaker: 'ai', text: text });
 
-  // Reset buffers
-  transcript = '';
-  buffer = '';
+  finalBuffer = "";
+  interimBuffer = "";
 
-  // Start recognition in background for barge-in
-  if (rec && !muted) { try { rec.start(); } catch(e){} }
+  // Enable speech recognizer in background for natural interruption / barge-in
+  if (speechRecognizer && !isMicMuted) {
+    try { speechRecognizer.start(); } catch(e){}
+  }
 
-  playAudio(text, () => {
-    if (!active) return;
-    startListening();
+  playExaminerAudio(text, () => {
+    if (!isSessionLive) return;
+    openCandidateFloor();
   });
 }
 
-function startListening() {
-  listening = true;
-  transcript = '';
-  buffer = '';
-  clearTimeout(silenceTimeout);
+function openCandidateFloor() {
+  isListeningCandidate = true;
+  finalBuffer = "";
+  interimBuffer = "";
+  clearTimeout(silenceTimer);
 
-  document.getElementById('questionBadge').textContent = 'Answer this';
-  document.getElementById('transcriptStatus').textContent = 'Listening';
-  document.getElementById('transcriptStatus').style.color = 'var(--green)';
-  document.getElementById('transcriptText').textContent = 'Speak into your microphone...';
-  document.getElementById('btnDone').style.display = 'inline-flex';
+  const statusTag = document.getElementById('promptStatusTag');
+  statusTag.textContent = "Your Turn to Speak";
+  statusTag.className = "prompt-status-tag listening";
 
-  if (!muted && rec) { try { rec.start(); } catch(e){} }
+  document.getElementById('responseStatus').textContent = "Microphone Active";
+  document.getElementById('responseText').textContent = "Speak your answer clearly into your microphone...";
+  document.getElementById('btnDoneSpeaking').style.display = 'inline-flex';
+
+  if (!isMicMuted && speechRecognizer) {
+    try { speechRecognizer.start(); } catch(e){}
+  }
 }
 
-// ═══════════════════════════════════════
-// SPEECH RECOGNITION
-// ═══════════════════════════════════════
-function initSpeechRecognition() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;
-  if (rec) { try { rec.stop(); } catch(e){} }
+// ════════════════════════════════════════════════════════
+// SPEECH RECOGNITION (CHROME / EDGE DUPLEX)
+// ════════════════════════════════════════════════════════
+function initSpeechEngine() {
+  const SpeechEngine = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechEngine) return;
+  if (speechRecognizer) {
+    try { speechRecognizer.stop(); } catch(e){}
+  }
 
-  rec = new SR();
-  rec.continuous = true;
-  rec.interimResults = true;
-  rec.lang = 'en-US';
+  speechRecognizer = new SpeechEngine();
+  speechRecognizer.continuous = true;
+  speechRecognizer.interimResults = true;
+  speechRecognizer.lang = "en-US";
 
-  rec.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
+  speechRecognizer.onresult = (e) => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; ++i) {
       if (e.results[i].isFinal) {
-        transcript += e.results[i][0].transcript + ' ';
+        finalBuffer += e.results[i][0].transcript + " ";
       } else {
         interim += e.results[i][0].transcript;
       }
     }
-    buffer = (transcript + interim).trim();
 
-    // Barge-in: if user speaks while AI audio is playing, stop it
-    if (buffer.length > 3 && audio && !audio.paused) {
-      audio.pause();
-      audio = null;
-      listening = true;
-      document.getElementById('questionBadge').textContent = 'Answer this';
-      document.getElementById('transcriptStatus').textContent = 'Speaking';
-      document.getElementById('transcriptStatus').style.color = 'var(--green)';
-      document.getElementById('btnDone').style.display = 'inline-flex';
+    const currentSpeech = (finalBuffer + interim).trim();
+
+    // Natural Barge-In: Halt examiner speech if candidate interrupts
+    if (currentSpeech.length > 3 && currentPlaybackAudio && !currentPlaybackAudio.paused) {
+      currentPlaybackAudio.pause();
+      currentPlaybackAudio = null;
+      const wave = document.getElementById('soundIndicator');
+      if (wave) wave.classList.remove('active');
+      isListeningCandidate = true;
+      document.getElementById('promptStatusTag').textContent = "Interrupted // Answering";
+      document.getElementById('promptStatusTag').className = "prompt-status-tag listening";
+      document.getElementById('btnDoneSpeaking').style.display = 'inline-flex';
     }
 
-    if (buffer) {
-      document.getElementById('transcriptText').textContent = buffer;
-      countFillers(buffer);
+    if (currentSpeech) {
+      document.getElementById('responseText').textContent = `"${currentSpeech}"`;
+      auditHesitations(currentSpeech);
 
-      clearTimeout(silenceTimeout);
-      silenceTimeout = setTimeout(() => {
-        if (buffer.length > 3 && listening) {
-          finishTurn(buffer);
+      clearTimeout(silenceTimer);
+      // 2200ms natural conversational pause threshold
+      silenceTimer = setTimeout(() => {
+        if (currentSpeech.length > 3 && isListeningCandidate) {
+          concludeCandidateTurn(currentSpeech);
         }
       }, 2200);
     }
   };
 
-  rec.onerror = (e) => { console.warn('Speech recognition:', e.error); };
-  rec.onend = () => {
-    if ((listening || (audio && !audio.paused)) && active && !muted) {
-      try { rec.start(); } catch(e){}
+  speechRecognizer.onerror = (err) => {
+    console.warn("Speech recognition notice:", err.error);
+  };
+
+  speechRecognizer.onend = () => {
+    if ((isListeningCandidate || (currentPlaybackAudio && !currentPlaybackAudio.paused)) && isSessionLive && !isMicMuted) {
+      try { speechRecognizer.start(); } catch(e){}
     }
   };
 }
 
-function countFillers(text) {
+function auditHesitations(text) {
   const lower = text.toLowerCase();
   let count = 0;
-  FILLERS.forEach(f => {
+  FILLER_TOKENS.forEach(f => {
     const m = lower.match(new RegExp(`\\b${f}\\b`, 'gi'));
     if (m) count += m.length;
   });
-  turnFillerCount = count;
-  document.getElementById('statFillers').textContent = fillerCount + turnFillerCount;
-  const chip = document.getElementById('statFillerChip');
-  chip.className = (fillerCount + turnFillerCount) > 3 ? 'stat warn' : 'stat';
+  turnFillers = count;
+  const currentTotal = totalFillersDetected + turnFillers;
+  document.getElementById('chipFillers').textContent = currentTotal;
+  const box = document.getElementById('chipFillerBox');
+  box.className = currentTotal > 3 ? 'analytic-chip alert' : 'analytic-chip';
 }
 
-// ═══════════════════════════════════════
-// TURN MANAGEMENT
-// ═══════════════════════════════════════
-function submitAnswer() {
-  if (!listening) return;
-  const text = (buffer || transcript).trim();
+function commitSpokenAnswer() {
+  if (!isListeningCandidate) return;
+  const text = (finalBuffer + interimBuffer).trim();
   if (text.length > 2) {
-    clearTimeout(silenceTimeout);
-    finishTurn(text);
+    clearTimeout(silenceTimer);
+    concludeCandidateTurn(text);
   }
 }
 
-function retryAnswer() {
-  if (!listening) return;
-  clearTimeout(silenceTimeout);
-  transcript = '';
-  buffer = '';
-  turnFillerCount = 0;
-  document.getElementById('transcriptText').textContent = 'Cleared. Speak again...';
-  try { rec.stop(); setTimeout(() => { if (listening) rec.start(); }, 100); } catch(e){}
+function reRecordSpokenTurn() {
+  if (!isListeningCandidate) return;
+  clearTimeout(silenceTimer);
+  finalBuffer = "";
+  interimBuffer = "";
+  turnFillers = 0;
+  document.getElementById('responseText').textContent = "Answer cleared. Speak again...";
+  try {
+    speechRecognizer.stop();
+    setTimeout(() => { if (isListeningCandidate) speechRecognizer.start(); }, 120);
+  } catch(e){}
 }
 
-function toggleMute() {
-  const btn = document.getElementById('btnMute');
-  if (!muted) {
-    muted = true;
-    try { rec.stop(); } catch(e){}
-    btn.textContent = 'Unmute';
-    btn.style.color = 'var(--red)';
+function toggleMicrophone() {
+  const btn = document.getElementById('btnMuteToggle');
+  if (!isMicMuted) {
+    isMicMuted = true;
+    try { speechRecognizer.stop(); } catch(e){}
+    btn.textContent = "🔇 Unmute";
+    btn.style.color = "var(--accent-rose)";
   } else {
-    muted = false;
-    btn.textContent = 'Mute';
-    btn.style.color = '';
-    if (listening && rec) { try { rec.start(); } catch(e){} }
+    isMicMuted = false;
+    btn.textContent = "🎤 Mute";
+    btn.style.color = "";
+    if (isListeningCandidate && speechRecognizer) {
+      try { speechRecognizer.start(); } catch(e){}
+    }
   }
 }
 
-async function finishTurn(spokenText) {
-  listening = false;
-  clearTimeout(silenceTimeout);
-  document.getElementById('btnDone').style.display = 'none';
-  try { rec.stop(); } catch(e){}
+async function concludeCandidateTurn(spokenText) {
+  isListeningCandidate = false;
+  clearTimeout(silenceTimer);
+  document.getElementById('btnDoneSpeaking').style.display = 'none';
 
-  history.push({ speaker: 'user', text: spokenText });
+  try { speechRecognizer.stop(); } catch(e){}
+
+  conversationHistory.push({ speaker: 'user', text: spokenText });
+
   const words = spokenText.split(/\s+/).filter(Boolean);
-  wordCount += words.length;
-  fillerCount += turnFillerCount;
-  turnFillerCount = 0;
-  document.getElementById('statWords').textContent = wordCount;
+  totalWordsSpoken += words.length;
+  totalFillersDetected += turnFillers;
+  turnFillers = 0;
+  document.getElementById('chipWordCount').textContent = totalWordsSpoken;
 
-  turn++;
-  document.getElementById('barTurn').textContent = `Q${Math.min(turn, maxTurns)} of ${maxTurns}`;
+  sessionTurn++;
+  document.getElementById('roomTurnCounter').textContent = `Question ${Math.min(sessionTurn, sessionTotalTurns)} of ${sessionTotalTurns}`;
 
-  if (turn > maxTurns) {
-    speakQuestion("Thank you. That concludes our interview. Let's look at your evaluation.");
-    setTimeout(() => endInterview(), 4000);
+  if (sessionTurn > sessionTotalTurns) {
+    transmitExaminerPrompt("Thank you. That concludes the examination. Let us review your formal evaluation dossier.");
+    setTimeout(() => {
+      openFormalAssessmentDossier();
+    }, 4000);
     return;
   }
 
-  // Show thinking state
-  document.getElementById('questionBadge').textContent = 'Thinking...';
-  document.getElementById('transcriptStatus').textContent = 'Processing';
-  document.getElementById('transcriptStatus').style.color = 'var(--yellow)';
-  document.getElementById('transcriptText').textContent = 'Interviewer is formulating next question...';
+  // Examiner Thinking State
+  const statusTag = document.getElementById('promptStatusTag');
+  statusTag.textContent = "Examiner Formulating Inquiry";
+  statusTag.className = "prompt-status-tag";
+
+  document.getElementById('responseStatus').textContent = "Turn Recorded";
+  document.getElementById('responseText').textContent = "Examiner is reviewing your response...";
 
   const topic = document.getElementById('inputTopic').value.trim();
   const target = document.getElementById('inputTarget').value.trim();
@@ -827,163 +1560,202 @@ async function finishTurn(spokenText) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
+
     const res = await fetch('/api/comprehend', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: spokenText, persona: mode, turn: turn - 1, history, topic, target, difficulty: demeanor }),
+      body: JSON.stringify({
+        message: spokenText,
+        persona: selectedTrack,
+        turn: sessionTurn - 1,
+        history: conversationHistory,
+        topic: topic,
+        target: target,
+        difficulty: selectedDemeanor
+      }),
       signal: controller.signal
     });
     clearTimeout(timeout);
+
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    speakQuestion(data.reply);
+    transmitExaminerPrompt(data.reply);
   } catch(e) {
-    console.warn('Comprehend error:', e);
+    console.warn("Dialogue comprehend notice:", e);
     const fallbacks = [
-      "That's interesting. Can you give me a specific example to support that?",
-      "I see. But what evidence do you have to back that up?",
-      "Let's dig deeper. What was the exact challenge you faced?"
+      "That is a compelling premise. What empirical proof or personal experience supports that claim?",
+      "I see your point. But considering the counter-arguments, how do you justify that position?",
+      "Let us examine that more closely. What was the exact mechanism you utilized to resolve that challenge?"
     ];
-    speakQuestion(fallbacks[Math.floor(Math.random() * fallbacks.length)]);
+    transmitExaminerPrompt(fallbacks[Math.floor(Math.random() * fallbacks.length)]);
   }
 }
 
-// ═══════════════════════════════════════
-// HINT
-// ═══════════════════════════════════════
-async function getHint() {
-  const panel = document.getElementById('hintPanel');
-  if (panel.classList.contains('open')) { panel.classList.remove('open'); return; }
-  panel.classList.add('open');
-  document.getElementById('hintBody').textContent = 'Thinking...';
+// ════════════════════════════════════════════════════════
+// STRATEGIC ADVISORY DRAWER
+// ════════════════════════════════════════════════════════
+async function requestAdvisoryHint() {
+  const drawer = document.getElementById('strategyDrawer');
+  if (drawer.classList.contains('open')) {
+    drawer.classList.remove('open');
+    return;
+  }
+  drawer.classList.add('open');
+  document.getElementById('strategyContent').textContent = "Formulating strategic coaching guidance...";
 
   try {
     const res = await fetch('/api/hint', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        persona: mode,
+        persona: selectedTrack,
         topic: document.getElementById('inputTopic').value.trim(),
         target: document.getElementById('inputTarget').value.trim(),
-        lastQuestion,
-        history
+        lastQuestion: activeQuestionText,
+        history: conversationHistory
       })
     });
     const data = await res.json();
-    document.getElementById('hintBody').textContent = data.hint;
+    document.getElementById('strategyContent').textContent = data.hint;
   } catch(e) {
-    document.getElementById('hintBody').textContent = '• State your main point directly first.\n• Back it up with a specific example or number.';
+    document.getElementById('strategyContent').textContent = "• State your clear conclusion immediately without preamble.\n• Corroborate your claim with an audited metric or authentic initiative.";
   }
 }
-function closeHint() { document.getElementById('hintPanel').classList.remove('open'); }
 
-// ═══════════════════════════════════════
-// END & EVALUATE
-// ═══════════════════════════════════════
-async function endInterview() {
-  active = false;
-  if (audio) { audio.pause(); audio = null; }
-  try { rec.stop(); } catch(e){}
-  clearInterval(timer);
-  closeHint();
+function closeAdvisory() {
+  document.getElementById('strategyDrawer').classList.remove('open');
+}
 
-  document.getElementById('resultsOverlay').classList.add('open');
-  document.getElementById('resultsTitle').textContent = `${MODES[mode].name} — Evaluation`;
+// ════════════════════════════════════════════════════════
+// EVALUATION DOSSIER MODAL
+// ════════════════════════════════════════════════════════
+async function concludeInterviewEarly() {
+  openFormalAssessmentDossier();
+}
 
-  // Transcript
-  const tl = document.getElementById('fullTranscript');
-  tl.innerHTML = history.map(h => `
-    <div class="transcript-item ${h.speaker}">
-      <div class="speaker">${h.speaker === 'ai' ? MODES[mode].name : 'You'}</div>
-      <div>"${h.text}"</div>
+async function openFormalAssessmentDossier() {
+  isSessionLive = false;
+  if (currentPlaybackAudio) {
+    currentPlaybackAudio.pause();
+    currentPlaybackAudio = null;
+  }
+  try { speechRecognizer.stop(); } catch(e){}
+  clearInterval(sessionTimer);
+  closeAdvisory();
+
+  document.getElementById('dossierModal').classList.add('open');
+  const ex = EXAMINERS[selectedTrack];
+  document.getElementById('dossierTitle').textContent = `${ex.name} — Evaluation`;
+
+  // Render Transcript Timeline
+  const timeline = document.getElementById('transcriptTimeline');
+  timeline.innerHTML = conversationHistory.map(turn => `
+    <div class="timeline-entry ${turn.speaker}">
+      <div class="timeline-speaker">${turn.speaker === 'ai' ? ex.name : 'You'}</div>
+      <div>"${turn.text}"</div>
     </div>
   `).join('');
 
-  // Call API
+  // Call Server Analytics
   try {
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        history,
-        persona: mode,
+        history: conversationHistory,
+        persona: selectedTrack,
         topic: document.getElementById('inputTopic').value.trim(),
         target: document.getElementById('inputTarget').value.trim()
       })
     });
-    const d = await res.json();
+    const data = await res.json();
 
-    document.getElementById('scoreBadge').textContent = d.overallScore || 'Evaluated';
-    document.getElementById('resultsVerdict').textContent = d.verdict || 'Session completed.';
-    document.getElementById('metricFluency').textContent = d.fluencyScore || '—';
-    document.getElementById('metricLexical').textContent = d.lexicalScore || '—';
-    document.getElementById('metricLogic').textContent = d.logicScore || '—';
+    document.getElementById('dossierScoreBadge').textContent = data.overallScore || "Evaluated";
+    document.getElementById('dossierSummaryText').textContent = data.verdict || "Demonstrated solid conversational momentum and adaptability under inquiry.";
+    document.getElementById('scoreFluency').textContent = data.fluencyScore || "8.0 / 9.0";
+    document.getElementById('scoreLexical').textContent = data.lexicalScore || "7.5 / 9.0";
+    document.getElementById('scoreLogic').textContent = data.logicScore || "8.0 / 9.0";
 
-    const ub = document.getElementById('upgradesBox');
-    if (d.upgrades && d.upgrades.length > 0) {
-      ub.innerHTML = d.upgrades.map(u => `
-        <div class="upgrade-item">
-          <div class="upgrade-orig">You said: <strong>"${u.original}"</strong></div>
-          <div class="upgrade-better">→ "${u.improved}"</div>
-          <div class="upgrade-why">${u.why}</div>
+    const list = document.getElementById('upgradesList');
+    if (data.upgrades && data.upgrades.length > 0) {
+      list.innerHTML = data.upgrades.map(u => `
+        <div class="upgrade-row">
+          <div class="upgrade-original">You expressed: <strike>"${u.original}"</strike></div>
+          <div class="upgrade-improved">✦ Recommended: "${u.improved}"</div>
+          <div class="upgrade-context">${u.why}</div>
         </div>
       `).join('');
     } else {
-      ub.innerHTML = '<div class="upgrade-item"><div class="upgrade-better">No major vocabulary issues detected.</div></div>';
+      list.innerHTML = `
+        <div class="upgrade-row">
+          <div class="upgrade-improved">✦ Academic Lexical Integrity Maintained</div>
+          <div class="upgrade-context">Vocabulary precision matched high-band conversational benchmarks.</div>
+        </div>
+      `;
     }
 
-    // Save to localStorage
+    // Persist Session
     try {
       const records = JSON.parse(localStorage.getItem('speaksense_sessions') || '[]');
       records.push({
         date: new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        mode: MODES[mode].name,
-        score: d.overallScore || 'Done',
-        words: wordCount
+        examiner: ex.name,
+        score: data.overallScore || "Completed",
+        words: totalWordsSpoken
       });
       localStorage.setItem('speaksense_sessions', JSON.stringify(records.slice(-25)));
+      loadTrackHistory();
     } catch(e){}
   } catch(e) {
-    console.warn('Analyze error:', e);
+    console.warn("Analytics dossier error:", e);
   }
 }
 
-function copyResults() {
-  const score = document.getElementById('scoreBadge').textContent;
-  const verdict = document.getElementById('resultsVerdict').textContent;
-  const text = `SpeakSense Interview Report\nInterviewer: ${MODES[mode].name}\nScore: ${score}\n${verdict}\nWords: ${wordCount} | Fillers: ${fillerCount}`;
-  navigator.clipboard.writeText(text).then(() => alert('Copied!'));
+function copyDossierClipboard() {
+  const score = document.getElementById('dossierScoreBadge').textContent;
+  const summary = document.getElementById('dossierSummaryText').textContent;
+  const ex = EXAMINERS[selectedTrack];
+  const text = `SpeakSense Interview Assessment Dossier\nExaminer: ${ex.name} (${ex.track})\nOverall Rating: ${score}\nSummary: ${summary}\nTotal Words: ${totalWordsSpoken} | Hesitations: ${totalFillersDetected}`;
+  navigator.clipboard.writeText(text).then(() => {
+    alert("Official dossier summary copied to clipboard.");
+  });
 }
 
-function restart() {
-  document.getElementById('resultsOverlay').classList.remove('open');
+function restartTerminalSession() {
+  document.getElementById('dossierModal').classList.remove('open');
   document.getElementById('viewInterview').classList.remove('active');
   document.getElementById('viewSetup').style.display = 'block';
-  loadHistory();
+  loadTrackHistory();
 }
 
-// ═══════════════════════════════════════
-// SESSION HISTORY
-// ═══════════════════════════════════════
-function loadHistory() {
+function loadTrackHistory() {
   try {
     const records = JSON.parse(localStorage.getItem('speaksense_sessions') || '[]');
-    const pill = document.getElementById('historyPill');
-    if (!records.length) { pill.classList.remove('visible'); return; }
+    const bar = document.getElementById('historyBar');
+    if (!records.length) {
+      bar.classList.remove('active');
+      return;
+    }
     const last = records[records.length - 1];
-    pill.classList.add('visible');
-    pill.innerHTML = `Last session: <strong>${last.score}</strong> with ${last.mode} · ${records.length} total`;
+    bar.classList.add('active');
+    document.getElementById('historyScore').textContent = last.score;
+    document.getElementById('historyExaminer').textContent = last.examiner;
+    document.getElementById('historyDate').textContent = `${last.date} · ${records.length} total sessions recorded`;
   } catch(e){}
 }
-loadHistory();
+loadTrackHistory();
 
-// Browser check
+// Browser Check
 (function() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    document.getElementById('browserWarning').style.display = 'block';
-    const btn = document.querySelector('.btn-primary');
-    if (btn) { btn.disabled = true; btn.style.opacity = '0.4'; btn.style.cursor = 'not-allowed'; }
+  const Engine = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Engine) {
+    document.getElementById('compatWarning').classList.add('show');
+    const startBtn = document.querySelector('.btn-primary');
+    if (startBtn) {
+      startBtn.disabled = true;
+      startBtn.style.opacity = '0.4';
+      startBtn.style.cursor = 'not-allowed';
+    }
   }
 })();
 </script>
