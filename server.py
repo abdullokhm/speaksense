@@ -7,11 +7,11 @@ from aiohttp import web, ClientSession
 import edge_tts
 
 VOICE_MAP = {
-    "ielts": "en-GB-ThomasNeural",        # Refined British Academic Examiner
-    "visa": "en-US-GuyNeural",            # Natural, conversational US Consular Officer
-    "job": "en-US-BrianNeural",           # Clear, authoritative FAANG Tech Director
-    "college": "en-US-JennyNeural",       # Warm, articulate Ivy League Admissions Officer
-    "default": "en-GB-ThomasNeural"
+    "ielts": "en-GB-RyanNeural",          # Warm, natural modern British examiner
+    "visa": "en-US-GuyNeural",            # Conversational, human US Consular Officer
+    "job": "en-US-BrianNeural",           # Authoritative FAANG Tech Director
+    "college": "en-US-JennyNeural",       # Articulate Ivy League Admissions Officer
+    "default": "en-GB-RyanNeural"
 }
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "audio_cache")
@@ -158,7 +158,7 @@ async def handle_tts(request):
                     out += chunk["data"]
             return out
 
-        audio_data = await asyncio.wait_for(fetch_audio(), timeout=4.5)
+        audio_data = await asyncio.wait_for(fetch_audio(), timeout=7.0)
         if audio_data:
             with open(cache_file, "wb") as f:
                 f.write(audio_data)
