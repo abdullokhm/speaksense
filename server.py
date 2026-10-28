@@ -378,9 +378,22 @@ async def handle_index(request):
     }
     return web.Response(text=content, content_type="text/html", headers=headers)
 
+async def handle_ad(request):
+    ad_path = os.path.join(os.path.dirname(__file__), "ad.html")
+    with open(ad_path, "r", encoding="utf-8") as f:
+        content = f.read()
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    return web.Response(text=content, content_type="text/html", headers=headers)
+
 app = web.Application()
 app.router.add_get("/", handle_index)
 app.router.add_get("/index.html", handle_index)
+app.router.add_get("/ad", handle_ad)
+app.router.add_get("/ad.html", handle_ad)
 app.router.add_get("/api/tts", handle_tts)
 app.router.add_post("/api/comprehend", handle_comprehend)
 app.router.add_post("/api/hint", handle_hint)
