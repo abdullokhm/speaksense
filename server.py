@@ -125,12 +125,21 @@ def local_semantic_comprehend(user_input, persona, turn, history, topic="", targ
             return "That is an intriguing proposition. However, if empirical evidence suggested the exact contrary, on what philosophical grounds would you defend your assertion?"
 
 async def handle_tts(request):
-    text = request.query.get("text", "").strip()
-    voice_key = request.query.get("voice", "ielts")
+    if request.method == "POST":
+        try:
+            data = await request.json()
+            text = str(data.get("text", "")).strip()
+            voice_key = data.get("voice", "ielts")
+        except Exception:
+            text = ""
+            voice_key = "ielts"
+    else:
+        text = request.query.get("text", "").strip()
+        voice_key = request.query.get("voice", "ielts")
     voice = VOICE_MAP.get(voice_key, voice_key)
 
     if not text:
-        return web.Response(status=400, text="Missing 'text' query parameter")
+        return web.Response(status=400, text="Missing 'text' parameter")
 
     cache_key = hashlib.md5(f"{voice}_{text}".encode("utf-8")).hexdigest()
     cache_file = os.path.join(CACHE_DIR, f"{cache_key}.mp3")
@@ -170,9 +179,9 @@ async def handle_comprehend(request):
     except Exception:
         return web.Response(status=400, text="Invalid JSON body")
 
-    user_text = data.get("message", "").strip()
-    persona = data.get("persona", "ielts")
-    turn = data.get("turn", 1)
+    user_text = (data.get("user_text") or data.get("message", "")).strip()
+    persona = data.get("persona") or data.get("mode", "ielts")
+    turn = data.get("turn_count") if "turn_count" in data else data.get("turn", 1)
     history = data.get("history", [])
     topic = data.get("topic", "").strip()
     target = data.get("target", "").strip()
@@ -226,10 +235,10 @@ async def handle_hint(request):
     except Exception:
         return web.Response(status=400, text="Invalid JSON body")
 
-    persona = data.get("persona", "ielts")
+    persona = data.get("persona") or data.get("mode", "ielts")
     topic = data.get("topic", "")
     target = data.get("target", "")
-    last_question = data.get("lastQuestion", "")
+    last_question = data.get("lastQuestion") or data.get("last_question", "")
     api_key = data.get("apiKey", "").strip() or get_env_gemini_key()
 
     if api_key and last_question:
@@ -273,7 +282,7 @@ async def handle_analyze(request):
         return web.Response(status=400, text="Invalid JSON body")
 
     history = data.get("history", [])
-    persona = data.get("persona", "ielts")
+    persona = data.get("persona") or data.get("mode", "ielts")
     topic = data.get("topic", "")
     target = data.get("target", "")
     api_key = data.get("apiKey", "").strip() or get_env_gemini_key()
@@ -395,6 +404,7 @@ app.router.add_get("/index.html", handle_index)
 app.router.add_get("/ad", handle_ad)
 app.router.add_get("/ad.html", handle_ad)
 app.router.add_get("/api/tts", handle_tts)
+app.router.add_post("/api/tts", handle_tts)
 app.router.add_post("/api/comprehend", handle_comprehend)
 app.router.add_post("/api/hint", handle_hint)
 app.router.add_post("/api/analyze", handle_analyze)
