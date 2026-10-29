@@ -258,10 +258,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 <script>
 const $=id=>document.getElementById(id);
 const EX={
-  ielts:{name:"Dr. Arthur Davies",track:"IELTS Academic Examiner",intro:"Good afternoon. My name is Dr. Arthur Davies. Let us commence the interview. Could you state your full name, and what you are currently studying or working on?"},
-  college:{name:"Dean Eleanor Vance",track:"Admissions Committee Chair",intro:"Welcome. I am Dean Vance. We have reviewed your initial application. Tell me: what specific intellectual problem first sparked your commitment to this discipline?"},
-  visa:{name:"Officer Miller",track:"Consular Visa Officer",intro:"Good morning. You are applying for an F-1 visa. State clearly why you chose this exact institution, and how your family finances your foreign expenditure."},
-  job:{name:"Director Marcus Reed",track:"Executive Engineering Director",intro:"Thanks for meeting with me today. Let us get right to the heart of the matter: walk me through a major technical breakdown you personally resolved under pressure."}
+  ielts:{name:"Dr. Arthur Davies",track:"IELTS Academic Examiner",intro:"Good afternoon. My name is Dr. Arthur Davies. Can you tell me your full name, and what you are currently studying or working on?"},
+  college:{name:"Dean Eleanor Vance",track:"Admissions Committee Chair",intro:"Welcome. I am Dean Vance. Tell me: what first got you interested in this subject, and why did you choose this field?"},
+  visa:{name:"Officer Miller",track:"Consular Visa Officer",intro:"Good morning. You are applying for an F-1 student visa. Why did you choose this university, and how will you pay for your studies?"},
+  job:{name:"Director Marcus Reed",track:"Executive Engineering Director",intro:"Thanks for coming in today. Can you tell me about a tough technical problem you worked on recently, and how you solved it?"}
 };
 const FILLERS=["um","uh","uhm","like","you know","actually","basically","literally","sort of","kind of"];
 const S={track:"ielts",tone:"standard",total:3,turn:1,hist:[],live:false,sec:0,words:0,fill:0,tFill:0,q:"",fin:"",int:"",listening:false,speaking:false,muted:false};
@@ -353,8 +353,8 @@ function start(){
   },1000);
   initRec();
   const tg=$('target').value.trim();let intro=ex.intro;
-  if(tg&&S.track==='college')intro=`Welcome. I am ${ex.name}. We are reviewing your candidacy for ${tg}. What distinctive intellectual challenge first sparked your dedication to this field?`;
-  if(tg&&S.track==='visa')intro=`Good morning. You are applying for an F-1 visa to attend ${tg}. State clearly why you selected this institution, and how your family finances your degree.`;
+  if(tg&&S.track==='college')intro=`Welcome. I am ${ex.name}. Why did you choose ${tg}, and what are you most excited to study here?`;
+  if(tg&&S.track==='visa')intro=`Good morning. You are applying to study at ${tg}. Why did you choose this university, and how will your family fund your studies?`;
   ask(intro);
 }
 function buildProg(){$('prog').innerHTML=Array.from({length:S.total},()=>'<i></i>').join('')}
@@ -400,7 +400,11 @@ async function endTurn(text){
     ask(d.reply);
   }catch(e){
     console.debug("comprehend:",e);
-    const f=["That is a compelling premise. What evidence or personal experience supports that claim?","I see your point. Considering the counter-arguments, how do you justify that position?","Let us examine that more closely. What exactly did you do to resolve that challenge?"];
+    const f=[
+      "That makes sense. Can you tell me a little more about that?",
+      "Interesting point. Can you give me a specific example of what you mean?",
+      "Why do you feel that way? What made you come to that conclusion?"
+    ];
     ask(f[Math.floor(Math.random()*f.length)]);
   }
 }

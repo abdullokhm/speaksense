@@ -32,97 +32,93 @@ def get_env_gemini_key():
 
 def build_system_prompt(persona, topic="", target="", difficulty="standard"):
     demeanor_text = {
-        "supportive": "Your demeanor is warm, encouraging, and collaborative. Give the candidate constructive room to shine, but still ask thought-provoking questions.",
-        "standard": "Your demeanor is formal, realistic, and objective, adhering strictly to official interview standards.",
-        "brutal": "Your demeanor is relentless, skeptical, and high-pressure. Play devil's advocate, expose logical fallacies, cross-examine suspicious claims, and challenge every assumption."
-    }.get(difficulty, "Your demeanor is realistic and objective.")
+        "supportive": "Be encouraging, warm, and conversational. Give the candidate room to speak.",
+        "standard": "Be professional, clear, and direct, exactly like an official examiner.",
+        "brutal": "Be challenging and skeptical. Test the candidate with pointed follow-ups."
+    }.get(difficulty, "Be professional, clear, and direct.")
 
     custom_context = ""
     if topic:
-        custom_context += f"\nINTERVIEW FOCUS TOPIC: {topic}"
+        custom_context += f"\nTOPIC: {topic}"
     if target:
-        custom_context += f"\nTARGET INSTITUTION/ORGANIZATION: {target}"
+        custom_context += f"\nTARGET INSTITUTION/COMPANY: {target}"
+
+    language_rule = """
+CRITICAL LANGUAGE RULES (MANDATORY):
+- Speak in everyday, natural, conversational English (B1/B2 level).
+- Do NOT use obscure, academic C2 vocabulary (avoid words like 'philosophical grounds', 'cognitive automation', 'catalytic impact', 'interdisciplinary paradigm', 'empirical justification').
+- Ask clear, concrete, human questions that test the candidate's real thoughts, not their ability to decipher complex riddle sentences.
+- Keep your question short: strictly 1 to 2 spoken sentences (under 25 words).
+- Never use bullet points, asterisks, markdown, quotation marks, or emojis."""
 
     if persona == "college":
-        base = f"""You are Dean Eleanor Vance, Senior Admissions Officer evaluating an applicant for an elite university.
-The candidate is answering your questions about their background, intellectual vitality, leadership, and reasons for applying.
+        base = f"""You are Dean Eleanor Vance, an admissions interviewer for {target or 'university'}.
+You want to know who the candidate really is, why they chose this major, and what they actually care about.
 {demeanor_text}{custom_context}
-Listen closely to what the candidate said. Reference their specific words or ideas, probe their deeper motivation, and test if they have genuine intellectual curiosity rather than rehearsed answers.
-CRITICAL RULES:
-- Output strictly 1 to 2 spoken sentences (maximum 35 words).
-- Do NOT use bullet points, asterisks, quotation marks, or emojis.
-- Sound engaging, intellectually rigorous, and authentic."""
+{language_rule}
+Listen to what the applicant just said and ask a natural, conversational follow-up question about their interests or experiences."""
 
     elif persona == "visa":
-        base = f"""You are Consular Officer Miller at the US Embassy conducting an F-1/B-1 visa interview.
-The applicant is standing in front of you. You are under tight time constraints and skeptical by nature.
+        base = f"""You are Officer Miller, a US visa officer conducting a quick consular interview for {target or 'a US university'}.
+You want quick, honest answers about what they plan to study, how they will pay for it, and what their plans are after graduation.
 {demeanor_text}{custom_context}
-Listen to what the applicant just said. Zero in on funding sources, family income plausibility, specific institutional choice, or ties to their home country (Section 214b).
-CRITICAL RULES:
-- Output strictly 1 to 2 rapid-fire spoken sentences (maximum 30 words).
-- Do NOT use bullet points, markdown, or emojis.
-- Sound authoritative, professional, and slightly skeptical."""
+{language_rule}
+Listen to what the applicant said and ask a direct, clear follow-up about their studies, sponsor finances, or plans to return home."""
 
     elif persona == "job":
-        base = f"""You are Marcus Reed, Senior Engineering Director at a top technology company conducting a behavioral and technical depth interview.
+        base = f"""You are Marcus Reed, an engineering director interviewing a candidate for {target or 'a software role'}.
+You want to know what they actually worked on, how they solved problems, and what they learned.
 {demeanor_text}{custom_context}
-Listen to what the candidate said and evaluate them using the STAR framework (Situation, Task, Action, Result).
-Press them on their individual ownership, trade-offs, engineering bottlenecks, or what they would do differently.
-CRITICAL RULES:
-- Output strictly 1 to 2 spoken sentences (maximum 35 words).
-- Do NOT use markdown, emojis, or bullet points.
-- Sound sharp, collaborative, and focused on measurable impact."""
+{language_rule}
+Listen to the candidate and ask a practical, concrete follow-up question about their specific role, tech stack, or lessons learned."""
 
     else: # ielts
-        base = f"""You are Dr. Arthur Davies, a senior British Council IELTS Speaking examiner.
-The candidate is taking the IELTS Speaking test.
+        base = f"""You are Dr. Arthur Davies, an official IELTS Speaking examiner.
+In IELTS Speaking, examiners ask simple, natural, everyday questions to give the candidate room to demonstrate their English. Examiners do NOT speak in convoluted academic jargon.
 {demeanor_text}{custom_context}
-Listen carefully to the candidate's response. Directly reference their ideas, point out logical nuances, and ask a probing follow-up question that tests complex vocabulary and abstract reasoning (Band 7 to 9 level).
-CRITICAL RULES:
-- Output strictly 1 to 2 spoken sentences (maximum 35 words).
-- Do NOT use bullet points, asterisks, quotation marks, or emojis.
-- Speak in formal, sophisticated British English."""
+{language_rule}
+Listen to the candidate's answer and ask a natural, straightforward follow-up question on the topic (e.g. why they feel that way, an example from their life, or how things might change in the future)."""
 
     return base
 
 # Local Heuristic Semantic Engine Fallback
 def local_semantic_comprehend(user_input, persona, turn, history, topic="", target=""):
     lower = user_input.lower().strip()
-    target_str = target or "your target institution"
+    target_str = target or "your chosen place"
     
     if persona == "college":
         if any(w in lower for w in ["research", "study", "lab", "professor", "class"]):
-            return f"That specific academic focus is compelling. How do you plan to leverage {target_str} unique interdisciplinary labs to contribute beyond your coursework?"
-        elif any(w in lower for w in ["lead", "club", "founder", "started", "initiative"]):
-            return "Leading an initiative often uncovers unexpected resistance. What was the sharpest ethical or logistical trade-off you had to navigate during that project?"
+            return f"That sounds exciting. What kind of projects or classes are you most looking forward to taking at {target_str}?"
+        elif any(w in lower for w in ["lead", "club", "founder", "started", "initiative", "team"]):
+            return "Working with others can be tough. Can you tell me about a time you and your team disagreed on something?"
         else:
-            return f"Every competitive applicant mentions passion, but sustained curiosity requires resilience. When was the last time you pursued a problem where you initially failed repeatedly?"
+            return "What first got you interested in this subject? Was there a specific moment or person that inspired you?"
 
     elif persona == "visa":
         if any(w in lower for w in ["money", "father", "mother", "pay", "tuition", "bank", "fund", "dollar"]):
-            return "Bank balances alone do not prove stability. Can you state your sponsor's monthly net tax-audited revenue and business stability over recent years?"
-        elif any(w in lower for w in ["return", "home", "uzbekistan", "tashkent", "family"]):
-            return "Many students state intent to return, yet seek OPT and stay. What specific contractual commitment ties you to returning immediately upon graduation?"
+            return "Understood. What does your sponsor do for work, and how long have they been in that business?"
+        elif any(w in lower for w in ["return", "home", "uzbekistan", "tashkent", "family", "back"]):
+            return "What kind of job do you plan to look for when you come back home after graduating?"
         else:
-            return f"Degrees in this discipline are widely accessible domestically. What exact specialization does {target_str} offer that justifies foreign expenditure?"
+            return f"Why did you choose {target_str} specifically over other universities in your home country?"
 
     elif persona == "job":
         if any(w in lower for w in ["we did", "our team", "we built", "together"]):
-            return "You mentioned the group effort, but what was your individual architectural contribution when resolving the critical bottleneck?"
+            return "What was your specific part in that project, and what tools or languages did you use?"
         elif any(w in lower for w in ["fast", "improved", "good", "better", "scaled"]):
-            return "Can you quantify that outcome with concrete engineering metrics, such as latency percentiles, error rates, or infrastructure costs saved?"
+            return "How did you measure that improvement? What changed before and after your fix?"
         else:
-            return "Looking back on that technical decision, what was the biggest hidden downside or technical debt that resulted from your approach?"
+            return "If you had to do that project all over again today, what would you do differently?"
 
     else: # ielts
         if any(w in lower for w in ["tech", "ai", "computer", "future", "automate"]):
-            return "That highlights an ongoing philosophical debate. Do you believe cognitive automation will ultimately diminish human creativity, or democratize it?"
+            return "Do you think artificial intelligence is making our daily lives easier or more complicated?"
         elif any(w in lower for w in ["society", "culture", "people", "country", "youth"]):
-            return "Traditional values often clash with rapid modernization. Should policymakers actively preserve cultural heritage at the expense of economic velocity?"
+            return "Do young people in your country still follow traditional customs, or are things changing quickly?"
         elif turn == 1:
-            return "That provides helpful initial context. Looking at your academic foundation, what pivotal moment confirmed this was your dedicated path?"
+            return "That is interesting. What do you enjoy most about your studies or current work?"
         else:
-            return "That is an intriguing proposition. However, if empirical evidence suggested the exact contrary, on what philosophical grounds would you defend your assertion?"
+            return "Can you give me a personal example of what you mean by that?"
 
 async def handle_tts(request):
     if request.method == "POST":
