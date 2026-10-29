@@ -193,7 +193,7 @@ async def handle_comprehend(request):
 
     if api_key:
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
             sys_inst = build_system_prompt(persona, topic=topic, target=target, difficulty=difficulty)
 
             contents = []
@@ -208,8 +208,7 @@ async def handle_comprehend(request):
                 "contents": contents,
                 "generationConfig": {
                     "temperature": 0.7,
-                    "maxOutputTokens": 45,
-                    "thinkingConfig": {"thinkingBudget": 0}
+                    "maxOutputTokens": 45
                 }
             }
 
@@ -219,7 +218,7 @@ async def handle_comprehend(request):
                         res_json = await resp.json()
                         reply = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
                         reply = re.sub(r'[\*\"\_]', '', reply)
-                        return web.json_response({"reply": reply, "engine": "gemini-3.8-flash"})
+                        return web.json_response({"reply": reply, "engine": "gemini-3.5-flash-lite"})
                     else:
                         err_text = await resp.text()
                         print(f"[Notice] Gemini API returned status {resp.status}: {err_text[:120]}")
@@ -243,18 +242,17 @@ async def handle_hint(request):
 
     if api_key and last_question:
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
             prompt = f"""You are a master interview coach for {persona.upper()} interviews (Topic: {topic}, Target: {target}).
 The interviewer just asked: "{last_question}"
 Give the candidate 2 concise, actionable bullet points showing them how an elite (Band 9 / Ivy League) candidate should structure their answer.
 RULES: Output strictly 2 short bullet points (max 30 words total). No fluff, pure structure & strategy."""
 
             payload = {
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {
                     "temperature": 0.5,
-                    "maxOutputTokens": 80,
-                    "thinkingConfig": {"thinkingBudget": 0}
+                    "maxOutputTokens": 80
                 }
             }
             async with ClientSession() as session:
@@ -291,50 +289,74 @@ async def handle_analyze(request):
     all_user_words = " ".join(user_turns)
     total_words = len(all_user_words.split())
 
-    if api_key and len(user_turns) >= 2:
+    if api_key and len(user_turns) >= 1:
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={api_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}"
             dialogue_str = "\n".join([f"{h['speaker'].upper()}: {h['text']}" for h in history])
-            
-            prompt = f"""You are an elite interview auditor analyzing a candidate's spoken performance for {persona.upper()} (Topic: {topic}, Target: {target}).
-Analyze this full conversation transcript:
+
+            RUBRIC = {
+                "ielts": "IELTS Academic Speaking (9-band scale). Score by Fluency & Coherence, Lexical Resource, Grammar, Pronunciation.",
+                "college": "Ivy League admissions interview (100-point scale). Score by intellectual depth, authenticity, differentiation, institutional fit.",
+                "visa": "F-1 student visa consular interview (probability %). Score by ties to home country, financial evidence, study intent clarity, no red flags.",
+                "job": "Senior engineering/exec interview (100-point hire confidence). Score by STAR depth, ownership, technical credibility, culture fit."
+            }
+            rubric = RUBRIC.get(persona, RUBRIC["ielts"])
+
+            prompt = f"""You are a brutally honest, world-class interview evaluator. Do NOT inflate scores.
+Rubric: {rubric}
+Context: {topic} | Target: {target}
+Candidate word count: {total_words} words across {len(user_turns)} answer(s).
+
+Full interview transcript:
 {dialogue_str}
 
-Return a valid JSON object matching this schema:
+STRICT SCORING BANDS (apply without exception):
+- Under 20 words total → Band 3.0-4.0 / 30-45% / 30-45pts
+- 20-60 words, basic language → Band 4.5-5.5 / 50-65% / 50-62pts
+- 60-120 words, simple but clear → Band 5.5-6.5 / 62-72% / 60-70pts
+- 120-200 words, varied vocabulary → Band 6.5-7.5 / 72-82% / 68-78pts
+- 200+ words, sophisticated, coherent → Band 7.5-8.5 / 82-90% / 78-88pts
+- Genuinely exceptional only → Band 9.0 / 95%+ / 95+pts
+
+UPGRADE RULES:
+- "original" must be an EXACT quote from the candidate's actual words in the transcript above.
+- If the candidate said very little, show one example of what an ideal opening should look like.
+- Do NOT invent phrases the candidate did not say.
+
+Return ONLY this JSON (no markdown, no backticks, nothing else):
 {{
-  "overallScore": "string (e.g. 'Band 8.0' or 'Strong Admit 89/100' or 'Visa Approved 92%')",
-  "badgeClass": "string ('emerald' for high, 'accent' for good, 'amber' for mediocre)",
-  "verdict": "string (2 crisp analytical sentences summarizing overall fluency, rigor, and poise)",
-  "fluencyScore": "string (e.g. '8.5 / 9.0')",
-  "lexicalScore": "string (e.g. '8.0 / 9.0')",
-  "logicScore": "string (e.g. '7.5 / 9.0')",
+  "overallScore": "Band X.X or XX% or XX/100",
+  "badgeClass": "emerald or accent or amber",
+  "verdict": "Two specific, honest sentences: one strength observed, one concrete gap.",
+  "fluencyScore": "X.X / 9.0",
+  "lexicalScore": "X.X / 9.0",
+  "logicScore": "X.X / 9.0",
   "upgrades": [
     {{
-      "original": "short quote of candidate's actual basic phrase",
-      "improved": "high-impact Band 9 / Ivy League rewrite",
-      "why": "brief explanation of why this elevates the argument"
+      "original": "exact phrase from candidate transcript",
+      "improved": "elite-level rewrite of that phrase",
+      "why": "one line on why this version is stronger"
     }},
     {{
-      "original": "second phrase candidate used",
-      "improved": "elevated academic rewrite",
-      "why": "brief explanation"
+      "original": "second exact phrase from transcript",
+      "improved": "elite rewrite",
+      "why": "one line"
     }}
   ],
-  "topStrength": "one sentence highlight of candidate's best quality",
-  "keyImprovement": "one actionable adjustment for next interview"
-}}
-CRITICAL: Output ONLY raw valid JSON. No markdown code blocks, no backticks."""
+  "topStrength": "one specific strength from THIS session",
+  "keyImprovement": "one concrete, session-specific next step"
+}}"""
 
             payload = {
-                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+                "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {
-                    "temperature": 0.4,
-                    "maxOutputTokens": 600,
-                    "thinkingConfig": {"thinkingBudget": 0}
+                    "temperature": 0.25,
+                    "maxOutputTokens": 900,
+                    "responseMimeType": "application/json"
                 }
             }
             async with ClientSession() as session:
-                async with session.post(url, json=payload, timeout=12.0) as resp:
+                async with session.post(url, json=payload, timeout=18.0) as resp:
                     if resp.status == 200:
                         res_json = await resp.json()
                         raw_text = res_json["candidates"][0]["content"]["parts"][0]["text"].strip()
@@ -342,37 +364,52 @@ CRITICAL: Output ONLY raw valid JSON. No markdown code blocks, no backticks."""
                         raw_text = re.sub(r'\s*```$', '', raw_text)
                         parsed = json.loads(raw_text)
                         return web.json_response(parsed)
+                    else:
+                        err_body = await resp.text()
+                        print(f"[Notice] Gemini assess {resp.status}: {err_body[:120]}")
         except Exception as e:
-            print(f"[Notice] Diagnostic fallback engaged: {type(e).__name__}")
+            print(f"[Notice] Diagnostic fallback: {type(e).__name__}: {e}")
 
-    # Fallback diagnostics
-    score = "Band 7.5" if total_words > 120 else "Band 6.5"
-    if persona == "visa":
-        score = "Visa Approved 88%" if total_words > 80 else "Review Needed (214b)"
-    elif persona == "college":
-        score = "Strong Contender 85/100" if total_words > 100 else "Needs Differentiation 72/100"
+    # Fallback diagnostics — word-count calibrated
+    if total_words < 20:
+        score = "Band 3.5" if persona == "ielts" else ("30%" if persona == "visa" else "38/100")
+        badge = "amber"
+    elif total_words < 60:
+        score = "Band 5.0" if persona == "ielts" else ("55%" if persona == "visa" else "55/100")
+        badge = "amber"
+    elif total_words < 120:
+        score = "Band 6.0" if persona == "ielts" else ("65%" if persona == "visa" else "62/100")
+        badge = "accent"
+    elif total_words < 200:
+        score = "Band 6.5" if persona == "ielts" else ("72%" if persona == "visa" else "68/100")
+        badge = "accent"
+    else:
+        score = "Band 7.0" if persona == "ielts" else ("80%" if persona == "visa" else "75/100")
+        badge = "accent"
+    if persona == "college":
+        score = score  # already handled above
 
     fallback_eval = {
         "overallScore": score,
-        "badgeClass": "emerald" if "Approved" in score or "8" in score else "accent",
-        "verdict": "You maintained consistent dialogue velocity and addressed the interviewer's direct inquiries. To reach the top percentile, eliminate conversational fillers and replace colloquial verbs with domain-specific academic terminology.",
-        "fluencyScore": "7.5 / 9.0",
-        "lexicalScore": "7.0 / 9.0",
-        "logicScore": "8.0 / 9.0",
+        "badgeClass": badge,
+        "verdict": f"Your {total_words}-word response covered the question but lacked the depth and range an examiner expects. Expand each answer with a concrete example, then a reflective comment to reach the next band.",
+        "fluencyScore": "5.5 / 9.0" if total_words < 60 else "6.5 / 9.0",
+        "lexicalScore": "5.0 / 9.0" if total_words < 60 else "6.0 / 9.0",
+        "logicScore": "5.5 / 9.0" if total_words < 60 else "6.5 / 9.0",
         "upgrades": [
             {
-                "original": "I want to study this because it is very important for the future",
-                "improved": "I am driven to master this domain given its catalytic impact on next-generation systems",
-                "why": "Replaces generic descriptors with purposeful academic articulation."
+                "original": user_turns[0][:80] if user_turns else "No answer recorded",
+                "improved": "Start with your key point, support it with one specific example, then connect it back to the question.",
+                "why": "PEEL structure (Point → Example → Explanation → Link) instantly raises coherence scores."
             },
             {
-                "original": "I worked with my team to fix the big problem",
-                "improved": "I orchestrated cross-functional efforts to remediate a critical architectural bottleneck",
-                "why": "Demonstrates decisive individual leadership using active operational verbs."
-            }
+                "original": user_turns[-1][:80] if len(user_turns) > 1 else (user_turns[0][:80] if user_turns else "..."),
+                "improved": "Replace vague descriptors ('very', 'a lot', 'important') with precise academic vocabulary and quantified claims.",
+                "why": "Lexical precision is the fastest path from Band 6 to Band 7+.",
+            },
         ],
-        "topStrength": "Responsive conversational adaptability under rapid-fire questioning.",
-        "keyImprovement": "Lead immediately with concrete metrics rather than qualitative generalizations."
+        "topStrength": "You stayed engaged and responded directly to the question asked.",
+        "keyImprovement": f"Your answers averaged {total_words // max(len(user_turns), 1)} words each — aim for 80-120 words per answer with a concrete example in every response."
     }
     return web.json_response(fallback_eval)
 
