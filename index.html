@@ -527,28 +527,30 @@ async function post(url,body,ms){
 async function endTurn(text){
   S.listening=false;pauseMic();clearSilence();
   S.lastTurnText=text;
-  S.hist.push({speaker:'user',text});
-  S.words+=text.split(/\s+/).filter(Boolean).length;S.fill+=S.tFill;S.tFill=0;
-  $('mWords').textContent=S.words;
-  S.turn++;
-  
-  if(S.turn>S.total){
-    updateTurn();
-    [...$('prog').children].forEach(e=>e.className='d');
-    return ask("Thank you. That concludes the examination. Let us review your formal evaluation.",true);
-  }
-
-  updateTurn();
   phase('thinking','Examiner is listening & thinking…');
   $('sayLbl').textContent="Recorded";
   const tg=$('target').value.trim(),tp=$('topic').value.trim();
 
   try{
     const d=await post('/api/comprehend',{
-      user_text:text,mode:S.track,turn_count:S.turn-1,history:S.hist,
-      message:text,persona:S.track,turn:S.turn-1,topic:tp,target:tg,difficulty:S.tone
-    },9000);
+      user_text:text,mode:S.track,turn_count:S.turn,history:S.hist,
+      message:text,persona:S.track,turn:S.turn,topic:tp,target:tg,difficulty:S.tone
+    },18000);
     $('errBox').classList.remove('on');
+
+    // Only commit turn progression on successful comprehension
+    S.hist.push({speaker:'user',text});
+    S.words+=text.split(/\s+/).filter(Boolean).length;S.fill+=S.tFill;S.tFill=0;
+    $('mWords').textContent=S.words;
+    S.turn++;
+
+    if(S.turn>S.total){
+      updateTurn();
+      [...$('prog').children].forEach(e=>e.className='d');
+      return ask("Thank you. That concludes the examination. Let us review your formal evaluation.",true);
+    }
+
+    updateTurn();
     ask(d.reply);
   }catch(e){
     console.warn("Comprehend error:",e);
