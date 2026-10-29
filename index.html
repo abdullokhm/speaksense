@@ -720,8 +720,7 @@ $('bHint').onclick=async()=>{
       lastQuestion:S.q,persona:S.track,topic:$('topic').value.trim(),target:$('target').value.trim(),history:S.hist});
     if(mySeq===hintSeq)$('hintTxt').textContent=d.hint;
   }catch(_){
-    if(mySeq===hintSeq)$('hintTxt').textContent="• State your conclusion directly first.
-• Support it with one concrete example from your experience.";
+    if(mySeq===hintSeq)$('hintTxt').textContent="• State your conclusion directly first.\n• Support it with one concrete example from your experience.";
   }
 };
 $('hintX').onclick=()=>$('hint').classList.remove('on');
