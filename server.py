@@ -7,11 +7,11 @@ from aiohttp import web, ClientSession
 import edge_tts
 
 VOICE_MAP = {
-    "ielts": "en-GB-RyanNeural",          # Warm, natural modern British examiner
-    "visa": "en-US-GuyNeural",            # Conversational, human US Consular Officer
-    "job": "en-US-BrianNeural",           # Authoritative FAANG Tech Director
-    "college": "en-US-JennyNeural",       # Articulate Ivy League Admissions Officer
-    "default": "en-GB-RyanNeural"
+    "ielts": "en-US-AndrewMultilingualNeural",   # Fluid, natural conversational voice
+    "visa": "en-US-GuyNeural",                  # Conversational, human US Consular Officer
+    "job": "en-US-BrianMultilingualNeural",     # Deep, natural tech director
+    "college": "en-US-EmmaMultilingualNeural",   # Warm, expressive admissions officer
+    "default": "en-US-AndrewMultilingualNeural"
 }
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "audio_cache")
@@ -145,33 +145,43 @@ async def handle_tts(request):
     cache_file = os.path.join(CACHE_DIR, f"{cache_key}.mp3")
 
     if os.path.exists(cache_file):
-        with open(cache_file, "rb") as f:
-            data = f.read()
-        return web.Response(body=data, content_type="audio/mpeg")
+        try:
+            if os.path.getsize(cache_file) > 1000:
+                with open(cache_file, "rb") as f:
+                    data = f.read()
+                return web.Response(body=data, content_type="audio/mpeg")
+            else:
+                os.remove(cache_file)
+        except Exception:
+            pass
+
+    async def fetch_audio():
+        communicate = edge_tts.Communicate(text, voice, rate="+2%", pitch="+1Hz")
+        out = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                out += chunk["data"]
+        return out
 
     try:
-        async def fetch_audio():
-            communicate = edge_tts.Communicate(text, voice, rate="+0%")
-            out = b""
-            async for chunk in communicate.stream():
-                if chunk["type"] == "audio":
-                    out += chunk["data"]
-            return out
-
-        audio_data = await asyncio.wait_for(fetch_audio(), timeout=7.0)
-        if audio_data:
+        audio_data = await asyncio.wait_for(fetch_audio(), timeout=15.0)
+        if audio_data and len(audio_data) > 1000:
             with open(cache_file, "wb") as f:
                 f.write(audio_data)
             return web.Response(body=audio_data, content_type="audio/mpeg")
     except Exception as e:
-        print(f"[Notice] Live TTS socket issue ({type(e).__name__}). Serving neural audio fallback...")
-        # Serve any pre-rendered neural voice audio so candidate NEVER gets robot voice
-        if os.path.exists(CACHE_DIR):
-            files = [f for f in os.listdir(CACHE_DIR) if f.endswith(".mp3")]
-            if files:
-                with open(os.path.join(CACHE_DIR, files[0]), "rb") as cf:
-                    return web.Response(body=cf.read(), content_type="audio/mpeg")
-        return web.Response(status=500, text=str(e))
+        print(f"[Notice] First TTS attempt failed ({type(e).__name__}). Retrying once...")
+        try:
+            audio_data = await asyncio.wait_for(fetch_audio(), timeout=15.0)
+            if audio_data and len(audio_data) > 1000:
+                with open(cache_file, "wb") as f:
+                    f.write(audio_data)
+                return web.Response(body=audio_data, content_type="audio/mpeg")
+        except Exception as retry_err:
+            print(f"[Notice] Retry also failed: {retry_err}")
+            return web.Response(status=500, text=str(retry_err))
+
+    return web.Response(status=500, text="Failed to generate audio")
 
 async def handle_comprehend(request):
     try:

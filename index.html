@@ -197,14 +197,14 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
    <div class="group">
     <h2>Scenario</h2>
     <div class="scen" id="scen">
-     <button class="on" data-t="Undergraduate Admissions Interview" data-o="Harvard University">Why this university</button>
-     <button data-t="Technology and everyday life" data-o="IELTS Speaking Part 3">IELTS: Technology</button>
-     <button data-t="F-1 Student Visa: Family Funding & Ties to Home" data-o="US Embassy Tashkent">Visa: funding and ties</button>
-     <button data-t="Debugging a major production outage under pressure" data-o="Tech Interview">Job: handling a crisis</button>
+     <button class="on" data-k="ielts" data-t="Work, study, and daily life" data-o="IELTS Band 7.5+">IELTS: Work, study & life</button>
+     <button data-k="college" data-t="Undergraduate Admissions Interview" data-o="Harvard University">Admissions: Why this university</button>
+     <button data-k="visa" data-t="F-1 Student Visa: Family Funding & Ties to Home" data-o="US Embassy Tashkent">Visa: funding and ties</button>
+     <button data-k="job" data-t="Debugging a major production outage under pressure" data-o="Tech Interview">Job: handling a crisis</button>
     </div>
     <div class="fields">
-     <div class="f"><label for="topic">Topic</label><input id="topic" value="Undergraduate Admissions Interview"></div>
-     <div class="f"><label for="target">Organization / Goal</label><input id="target" value="Harvard University"></div>
+     <div class="f"><label for="topic">Topic</label><input id="topic" value="Work, study, and daily life"></div>
+     <div class="f"><label for="target">Organization / Goal</label><input id="target" value="IELTS Band 7.5+"></div>
     </div>
    </div>
 
@@ -331,11 +331,30 @@ async function pingServer(){
 pingServer();
 
 /* setup interactions */
+const TRACK_DEFAULTS={
+  ielts:{topic:"Work, study, and daily life",target:"IELTS Band 7.5+"},
+  college:{topic:"Undergraduate Admissions Interview",target:"Harvard University"},
+  visa:{topic:"F-1 Student Visa: Family Funding & Ties to Home",target:"US Embassy Tashkent"},
+  job:{topic:"Debugging a major production outage under pressure",target:"Tech Interview"}
+};
+
 function radio(group,cb){group.addEventListener('click',e=>{const b=e.target.closest('[role=radio]');if(!b)return;group.querySelectorAll('[role=radio]').forEach(x=>x.setAttribute('aria-checked',x===b));cb(b)})}
-radio(document.querySelector('.group[role=radiogroup]'),b=>S.track=b.dataset.k);
+radio(document.querySelector('.group[role=radiogroup]'),b=>{
+  S.track=b.dataset.k;
+  const d=TRACK_DEFAULTS[S.track];
+  if(d){$('topic').value=d.topic;$('target').value=d.target}
+});
 radio($('segD'),b=>S.tone=b.dataset.v);
 radio($('segN'),b=>S.total=+b.dataset.v);
-$('scen').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$('scen').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));$('topic').value=b.dataset.t;$('target').value=b.dataset.o});
+$('scen').addEventListener('click',e=>{
+  const b=e.target.closest('button');if(!b)return;
+  $('scen').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  if(b.dataset.k){
+    S.track=b.dataset.k;
+    document.querySelectorAll('.group[role=radiogroup] [role=radio]').forEach(x=>x.setAttribute('aria-checked',x.dataset.k===b.dataset.k));
+  }
+  $('topic').value=b.dataset.t;$('target').value=b.dataset.o;
+});
 
 /* Audition button with debounce */
 let audBusy=false;
@@ -349,41 +368,87 @@ $('btnAud').onclick=async()=>{
 };
 $('btnStart').onclick=start;
 
-/* ---------- Audio: MP3 from /api/tts with 7s timeout ---------- */
-function stopAudio(){if(audio){audio.onended=audio.onerror=null;audio.pause();if(audio._u)URL.revokeObjectURL(audio._u);audio=null}}
+/* ---------- Audio: Instant Streaming MP3 from /api/tts with fallback ---------- */
+function stopAudio(){
+  if(audio){
+    audio.onended=audio.onerror=audio.onplaying=null;
+    audio.pause();
+    if(audio._u)URL.revokeObjectURL(audio._u);
+    audio=null;
+  }
+}
+
 async function speak(text,done){
   stopAudio();
   pauseMic();
   S.speaking=true;
-  let src;
-  const c=new AbortController(),timeout=setTimeout(()=>c.abort(),7000);
-  try{
-    const r=await fetch('/api/tts',{
-      method:'POST',
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({text,voice:S.track}),
-      signal:c.signal
-    });
-    clearTimeout(timeout);
-    if(r.status===405){
-      src=`/api/tts?text=${encodeURIComponent(text)}&voice=${S.track}`;
-    }else if(!r.ok){
-      throw new Error(`TTS failed with status ${r.status}`);
-    }else{
-      src=URL.createObjectURL(await r.blob());
-    }
-  }catch(err){
-    clearTimeout(timeout);
-    console.warn("TTS fallback engaged:",err);
-    S.speaking=false;
-    if(done)setTimeout(done,600);
-    return;
-  }
 
-  const a=new Audio(src);a._u=src.startsWith('blob:')?src:null;audio=a;
-  const end=()=>{if(audio!==a)return;stopAudio();S.speaking=false;done&&done()};
-  a.onended=end;a.onerror=end;
-  a.play().catch(end);
+  let finished=false;
+  const finishSpeak=()=>{
+    if(finished)return;
+    finished=true;
+    clearTimeout(safetyTimer);
+    stopAudio();
+    S.speaking=false;
+    done&&done();
+  };
+
+  // Watchdog timer: if audio stalls or gets blocked, recover gracefully in 12s
+  const safetyTimer=setTimeout(()=>{
+    console.warn("TTS watchdog triggered. Recovering flow.");
+    finishSpeak();
+  },12000);
+
+  // Directly stream from /api/tts via GET. The browser native audio pipeline plays as soon as first frame arrives.
+  const streamUrl=`/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(S.track)}`;
+  const a=new Audio();
+  a.preload="auto";
+  audio=a;
+
+  a.onplaying=()=>{
+    if(audio!==a)return;
+    phase('speaking',`${EX[S.track].name} is speaking`);
+  };
+
+  a.onended=finishSpeak;
+
+  a.onerror=async()=>{
+    if(audio!==a)return;
+    console.warn("Direct stream error, attempting blob fallback…");
+    try{
+      const c=new AbortController(),to=setTimeout(()=>c.abort(),5000);
+      const r=await fetch('/api/tts',{
+        method:'POST',
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({text,voice:S.track}),
+        signal:c.signal
+      });
+      clearTimeout(to);
+      if(!r.ok)throw new Error(`HTTP ${r.status}`);
+      const blob=await r.blob();
+      if(audio!==a)return;
+      const u=URL.createObjectURL(blob);
+      a._u=u;
+      a.src=u;
+      await a.play();
+    }catch(err){
+      console.warn("TTS failed:",err);
+      finishSpeak();
+    }
+  };
+
+  try{
+    a.src=streamUrl;
+    const p=a.play();
+    if(p!==undefined){
+      p.catch(err=>{
+        console.warn("Autoplay notice, falling back:",err);
+        a.onerror();
+      });
+    }
+  }catch(_){
+    a.onerror();
+  }
 }
 
 /* Replay examiner voice button */
@@ -503,7 +568,7 @@ function ask(text,closing){
   $('pauseCue').classList.remove('on');
   $('sayTxt').textContent="The examiner is speaking. Your microphone opens when they finish.";$('sayTxt').classList.add('ph');
   $('errBox').classList.remove('on');
-  phase('speaking',`${EX[S.track].name} is speaking`);
+  phase('connecting',`${EX[S.track].name} is answering…`);
   S.hist.push({speaker:'ai',text});
   speak(text,()=>{if(!S.live)return;closing?finish():openFloor()});
 }
