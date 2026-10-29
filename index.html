@@ -307,7 +307,24 @@ const EX={
 };
 const FILLERS=["um","uh","uhm","like","you know","actually","basically","literally","sort of","kind of"];
 const S={track:"ielts",tone:"standard",total:3,turn:1,hist:[],live:false,sec:0,words:0,userSpeakingSec:0,fill:0,tFill:0,q:"",fin:"",int:"",listening:false,speaking:false,muted:false,lastTurnText:""};
-let rec=null,silence=null,silenceTimer=null,audio=null,clock=null;
+let rec=null,silence=null,silenceTimer=null,clock=null;
+let sid=0; // Generation ID to prevent race conditions and cross-session state leaks
+let micErrCount=0;
+
+// Persistent unlocked audio element for mobile Safari / Chrome
+let audioEl=null;
+function getAudio(){
+  if(!audioEl){
+    audioEl=new Audio();
+    audioEl.preload="auto";
+  }
+  return audioEl;
+}
+function unlockAudio(){
+  const a=getAudio();
+  a.src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+  a.play().catch(()=>{});
+}
 
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -356,67 +373,75 @@ $('scen').addEventListener('click',e=>{
   $('topic').value=b.dataset.t;$('target').value=b.dataset.o;
 });
 
-/* Audition button with debounce */
+/* Audition button with real Promise debounce */
 let audBusy=false;
 $('btnAud').onclick=async()=>{
   if(audBusy)return;
   audBusy=true;
+  unlockAudio();
   $('btnAud').textContent="Loading voice…";$('btnAud').disabled=true;
-  await speak(`Good day. I am ${EX[S.track].name}. Audio check complete.`);
+  await new Promise(res=>{
+    speak(`Good day. I am ${EX[S.track].name}. Audio check complete.`,res);
+  });
   audBusy=false;
   $('btnAud').textContent="Hear the examiner";$('btnAud').disabled=false;
 };
 $('btnStart').onclick=start;
 
-/* ---------- Audio: Instant Streaming MP3 from /api/tts with fallback ---------- */
+/* ---------- Audio: Stream with Dynamic Watchdog & Fallback ---------- */
 function stopAudio(){
-  if(audio){
-    audio.onended=audio.onerror=audio.onplaying=null;
-    audio.pause();
-    if(audio._u)URL.revokeObjectURL(audio._u);
-    audio=null;
+  if(audioEl){
+    audioEl.onended=audioEl.onerror=audioEl.onplaying=null;
+    audioEl.pause();
+    if(audioEl._u){URL.revokeObjectURL(audioEl._u);audioEl._u=null;}
   }
 }
 
 async function speak(text,done){
+  const mySid=sid;
   stopAudio();
   pauseMic();
   S.speaking=true;
 
   let finished=false;
+  let safetyTimer=null;
+
   const finishSpeak=()=>{
     if(finished)return;
     finished=true;
-    clearTimeout(safetyTimer);
+    if(safetyTimer)clearTimeout(safetyTimer);
     stopAudio();
     S.speaking=false;
-    done&&done();
+    if(mySid===sid&&S.live&&done)done();
   };
 
-  // Watchdog timer: if audio stalls or gets blocked, recover gracefully in 12s
-  const safetyTimer=setTimeout(()=>{
-    console.warn("TTS watchdog triggered. Recovering flow.");
+  // Watchdog timer: initially 12s, dynamically reset to actual audio duration + 4s on play
+  safetyTimer=setTimeout(()=>{
+    console.warn("TTS watchdog triggered.");
     finishSpeak();
   },12000);
 
-  // Directly stream from /api/tts via GET. The browser native audio pipeline plays as soon as first frame arrives.
-  const streamUrl=`/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(S.track)}`;
-  const a=new Audio();
-  a.preload="auto";
-  audio=a;
+  const a=getAudio();
+  let fallbackAttempted=false;
 
   a.onplaying=()=>{
-    if(audio!==a)return;
+    if(mySid!==sid||!S.speaking)return;
     phase('speaking',`${EX[S.track].name} is speaking`);
+    const dur=a.duration;
+    if(dur&&!isNaN(dur)&&isFinite(dur)){
+      clearTimeout(safetyTimer);
+      safetyTimer=setTimeout(finishSpeak,(dur*1000)+4000);
+    }
   };
 
   a.onended=finishSpeak;
 
   a.onerror=async()=>{
-    if(audio!==a)return;
+    if(mySid!==sid||finished||fallbackAttempted)return finishSpeak();
+    fallbackAttempted=true;
     console.warn("Direct stream error, attempting blob fallback…");
     try{
-      const c=new AbortController(),to=setTimeout(()=>c.abort(),5000);
+      const c=new AbortController(),to=setTimeout(()=>c.abort(),6000);
       const r=await fetch('/api/tts',{
         method:'POST',
         headers:{"Content-Type":"application/json"},
@@ -426,35 +451,37 @@ async function speak(text,done){
       clearTimeout(to);
       if(!r.ok)throw new Error(`HTTP ${r.status}`);
       const blob=await r.blob();
-      if(audio!==a)return;
+      if(mySid!==sid)return;
       const u=URL.createObjectURL(blob);
       a._u=u;
       a.src=u;
       await a.play();
     }catch(err){
-      console.warn("TTS failed:",err);
+      console.warn("TTS fallback failed:",err);
       finishSpeak();
     }
   };
 
   try{
-    a.src=streamUrl;
+    a.src=`/api/tts?text=${encodeURIComponent(text)}&voice=${encodeURIComponent(S.track)}`;
     const p=a.play();
     if(p!==undefined){
       p.catch(err=>{
-        console.warn("Autoplay notice, falling back:",err);
-        a.onerror();
+        if(!fallbackAttempted)a.onerror();
       });
     }
   }catch(_){
-    a.onerror();
+    if(!fallbackAttempted)a.onerror();
   }
 }
 
-/* Replay examiner voice button */
+/* Replay examiner voice button: never deadlock listening state */
 $('btnReplay').onclick=()=>{
-  if(S.speaking||!S.q)return;
-  speak(S.q);
+  if(S.speaking||!S.q||!S.live)return;
+  const wasListening=S.listening;
+  speak(S.q,()=>{
+    if(wasListening&&S.live)openFloor();
+  });
 };
 
 /* ---------- Mic control ---------- */
@@ -468,21 +495,33 @@ function resumeMic(){if(S.listening&&!S.blocked&&!S.muted&&!S.speaking&&S.live&&
 
 function initRec(){
   if(!SR)return;
+  if(rec){try{rec.abort()}catch(_){}}
   rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang="en-US";
+  
   rec.onresult=e=>{
     if(S.speaking||!S.listening)return;
+    micErrCount=0;
+    
+    // Android-safe transcript reconstruction: rebuild completely from e.results
+    let fullFin="";
     let interim="";
-    for(let i=e.resultIndex;i<e.results.length;i++){
+    for(let i=0;i<e.results.length;i++){
       const r=e.results[i];
-      if(r.isFinal)S.fin+=r[0].transcript+" ";else interim+=r[0].transcript;
+      if(r.isFinal)fullFin+=r[0].transcript+" ";
+      else interim+=r[0].transcript;
     }
+    S.fin=fullFin;
     S.int=interim;
-    const txt=(S.fin+interim).trim();
+    const txt=(fullFin+interim).trim();
     if(!txt)return;
+    
     $('sayTxt').textContent=txt;$('sayTxt').classList.remove('ph');
     countFillers(txt);
 
-    // Human-calibrated pause detection: 4.5s total timeout with visual indicator
+    // Adaptive pause detection: 3.5s for normal answers, 5.0s for short answers
+    const wordCount=txt.split(/\s+/).filter(Boolean).length;
+    const pauseLimit=wordCount<10?5000:3500;
+
     clearSilence();
     silenceTimer=setTimeout(()=>{
       if(S.listening&&txt.length>4){
@@ -495,33 +534,41 @@ function initRec(){
         $('pauseCue').classList.remove('on');
         endTurn(txt);
       }
-    },4500);
+    },pauseLimit);
   };
+
   rec.onerror=e=>{
     console.debug("speech:",e.error);
-    if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+    micErrCount++;
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'||micErrCount>=3){
       S.blocked=true;pauseMic();
       if(S.listening)showBlocked();
     }
   };
-  rec.onend=()=>resumeMic();
+  
+  rec.onend=()=>{
+    if(micErrCount<3)resumeMic();
+  };
 }
 
 function micForbidden(){try{const p=document.permissionsPolicy||document.featurePolicy;return !!p&&!p.allowsFeature('microphone')}catch(_){return false}}
 function showBlocked(){
-  $('state').textContent="Mic blocked. Type your answer";
-  const t=$('sayTxt');t.contentEditable="true";t.classList.add('ph');
-  t.textContent="This page cannot access your microphone. Click here to type your answer, or allow microphone access in your browser settings.";
+  $('state').textContent="Mic unavailable. Type your answer";
+  const t=$('sayTxt');t.contentEditable="true";t.classList.remove('ph');
+  if(!t.textContent||t.textContent.includes("microphone"))t.textContent="Click here to type your answer, or allow microphone access in browser settings.";
 }
-$('sayTxt').addEventListener('focus',()=>{const t=$('sayTxt');if(S.blocked&&t.classList.contains('ph')){t.textContent="";t.classList.remove('ph')}});
+$('sayTxt').addEventListener('focus',()=>{const t=$('sayTxt');if(S.blocked&&t.textContent.includes("Click here")){t.textContent=""}});
 
 function countFillers(t){
-  let n=0;FILLERS.forEach(f=>{const m=t.toLowerCase().match(new RegExp(`\\b${f}\\b`,'g'));if(m)n+=m.length});
+  let n=0;FILLERS.forEach(f=>{const m=t.toLowerCase().match(new RegExp(`\b${f}\b`,'g'));if(m)n+=m.length});
   S.tFill=n;const tot=S.fill+n;$('mFill').textContent=tot;$('mFillBox').className=tot>3?'al':'';
 }
 
 /* ---------- Session ---------- */
 function start(){
+  unlockAudio();
+  sid++;
+  micErrCount=0;
   const ex=EX[S.track];
   Object.assign(S,{
     blocked:micForbidden(),turn:1,hist:[],live:true,sec:0,words:0,userSpeakingSec:0,
@@ -536,11 +583,12 @@ function start(){
   clock=setInterval(()=>{
     S.sec++;
     $('rTime').textContent=String(Math.floor(S.sec/60)).padStart(2,'0')+":"+String(S.sec%60).padStart(2,'0');
-    // True speaking pace: only count time when candidate microphone is open and active
+    // Speaking pace calculation
     if(S.listening&&!S.speaking&&!S.muted){
       S.userSpeakingSec++;
-      if(S.userSpeakingSec>3&&S.words>0){
-        const wpm=Math.round((S.words/S.userSpeakingSec)*60);
+      const currentWords=S.words+((S.fin+S.int).trim().split(/\s+/).filter(Boolean).length);
+      if(S.userSpeakingSec>4&&currentWords>0){
+        const wpm=Math.round((currentWords/S.userSpeakingSec)*60);
         $('mWpm').textContent=wpm;
         $('mPaceBox').className=(wpm<100||wpm>185)?'al':'';
       }
@@ -590,34 +638,41 @@ async function post(url,body,ms){
 }
 
 async function endTurn(text){
+  const mySid=sid;
   S.listening=false;pauseMic();clearSilence();
   S.lastTurnText=text;
   phase('thinking','Examiner is listening & thinking…');
   $('sayLbl').textContent="Recorded";
   const tg=$('target').value.trim(),tp=$('topic').value.trim();
 
+  // Commit candidate answer
+  S.hist.push({speaker:'user',text});
+  S.words+=text.split(/\s+/).filter(Boolean).length;
+  S.fill+=S.tFill;S.tFill=0;
+  $('mWords').textContent=S.words;
+  S.turn++;
+
+  // Optimization: If final turn was reached, skip wasteful LLM follow-up call
+  if(S.turn>S.total){
+    updateTurn();
+    [...$('prog').children].forEach(e=>e.className='d');
+    return ask("Thank you. That concludes the examination. Let us review your formal evaluation.",true);
+  }
+
   try{
     const d=await post('/api/comprehend',{
       user_text:text,mode:S.track,turn_count:S.turn,history:S.hist,
       message:text,persona:S.track,turn:S.turn,topic:tp,target:tg,difficulty:S.tone
-    },18000);
+    },16000);
+    
+    // Guard against stale async resolution across session resets
+    if(mySid!==sid||!S.live)return;
+
     $('errBox').classList.remove('on');
-
-    // Only commit turn progression on successful comprehension
-    S.hist.push({speaker:'user',text});
-    S.words+=text.split(/\s+/).filter(Boolean).length;S.fill+=S.tFill;S.tFill=0;
-    $('mWords').textContent=S.words;
-    S.turn++;
-
-    if(S.turn>S.total){
-      updateTurn();
-      [...$('prog').children].forEach(e=>e.className='d');
-      return ask("Thank you. That concludes the examination. Let us review your formal evaluation.",true);
-    }
-
     updateTurn();
     ask(d.reply);
   }catch(e){
+    if(mySid!==sid||!S.live)return;
     console.warn("Comprehend error:",e);
     $('errTxt').textContent="Network hiccup: examiner could not reach analysis server.";
     $('errBox').classList.add('on');
@@ -644,7 +699,7 @@ $('bRedo').onclick=()=>{
   if(!S.listening)return;
   clearSilence();S.fin=S.int="";S.tFill=0;
   $('sayTxt').textContent="Cleared. Speak again…";$('sayTxt').classList.add('ph');
-  try{rec.stop()}catch(_){}
+  try{rec&&rec.abort()}catch(_){}
 };
 
 $('bMute').onclick=()=>{
@@ -654,20 +709,26 @@ $('bMute').onclick=()=>{
 $('bEnd').onclick=finish;
 
 /* ---------- Hint ---------- */
+let hintSeq=0;
 $('bHint').onclick=async()=>{
   const h=$('hint');
   if(h.classList.toggle('on')===false)return;
+  const mySeq=++hintSeq;
   $('hintTxt').textContent="Working out a good approach…";
   try{
     const d=await post('/api/hint',{last_question:S.q,mode:S.track,
       lastQuestion:S.q,persona:S.track,topic:$('topic').value.trim(),target:$('target').value.trim(),history:S.hist});
-    $('hintTxt').textContent=d.hint;
-  }catch(_){$('hintTxt').textContent="• State your conclusion directly first.\n• Support it with one concrete example from your experience."}
+    if(mySeq===hintSeq)$('hintTxt').textContent=d.hint;
+  }catch(_){
+    if(mySeq===hintSeq)$('hintTxt').textContent="• State your conclusion directly first.
+• Support it with one concrete example from your experience.";
+  }
 };
 $('hintX').onclick=()=>$('hint').classList.remove('on');
 
 /* ---------- Report with Honest Scores ---------- */
 async function finish(){
+  sid++;
   S.live=false;S.listening=false;stopAudio();S.speaking=false;pauseMic();clearSilence();clearInterval(clock);
   $('hint').classList.remove('on');phase('idle');
   const ex=EX[S.track];
@@ -681,7 +742,7 @@ async function finish(){
   try{
     const d=await post('/api/analyze',{history:S.hist,mode:S.track,persona:S.track,topic:$('topic').value.trim(),target:$('target').value.trim()},25000);
     
-    // HONEST DISPLAY: Never invent fake 8.0s if missing
+    // HONEST DISPLAY: Label degraded estimates accurately
     $('repScore').textContent=d.overallScore||"Not Scored";
     $('repVerdict').textContent=d.verdict||"Performance evaluation completed.";
     $('repVerdict').classList.remove('pend');
@@ -699,13 +760,16 @@ async function finish(){
       requestAnimationFrame(()=>requestAnimationFrame(()=>$('b'+k).style.width=pct+'%'));
     }
 
-    $('ups').innerHTML=(d.upgrades&&d.upgrades.length?d.upgrades.map(u=>`<div class="up"><div class="o">${esc(u.original)}</div><div class="n">${esc(u.improved)}</div><div class="w">${esc(u.why)}</div></div>`).join(''):'<div class="up"><div class="w">No significant upgrades identified.</div></div>');
+    const safeUpgrades=Array.isArray(d.upgrades)?d.upgrades.filter(Boolean):[];
+    $('ups').innerHTML=(safeUpgrades.length?safeUpgrades.map(u=>`<div class="up"><div class="o">${esc(u.original)}</div><div class="n">${esc(u.improved)}</div><div class="w">${esc(u.why)}</div></div>`).join(''):'<div class="up"><div class="w">No significant upgrades identified.</div></div>');
 
-    try{
-      const r=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
-      r.push({date:new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}),examiner:ex.name,score:d.overallScore||"Completed",words:S.words});
-      localStorage.setItem('speaksense_sessions',JSON.stringify(r.slice(-25)));
-    }catch(_){}
+    if(!d.degraded){
+      try{
+        const r=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
+        r.push({date:new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}),examiner:ex.name,score:d.overallScore||"Completed",words:S.words});
+        localStorage.setItem('speaksense_sessions',JSON.stringify(r.slice(-25)));
+      }catch(_){}
+    }
   }catch(e){
     console.warn("analyze failure:",e);
     $('repScore').textContent="–";
@@ -716,8 +780,14 @@ async function finish(){
 
 $('bCopy').onclick=()=>{
   const ex=EX[S.track];
-  const t=`SpeakSense assessment\nExaminer: ${ex.name} (${ex.track})\nScore: ${$('repScore').textContent}\n${$('repVerdict').textContent}\nWords: ${S.words} | Fillers: ${S.fill}`;
-  navigator.clipboard.writeText(t).then(()=>{$('bCopy').textContent="Copied";setTimeout(()=>$('bCopy').textContent="Copy summary",1800)});
+  const t=`SpeakSense assessment
+Examiner: ${ex.name} (${ex.track})
+Score: ${$('repScore').textContent}
+${$('repVerdict').textContent}
+Words: ${S.words} | Fillers: ${S.fill}`;
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(()=>{$('bCopy').textContent="Copied";setTimeout(()=>$('bCopy').textContent="Copy summary",1800)}).catch(()=>{});
+  }
 };
 $('bAgain').onclick=()=>{show('sSetup');loadLast()};
 
