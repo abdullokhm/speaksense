@@ -134,6 +134,10 @@ async def handle_tts(request):
         voice_key = request.query.get("voice", "ielts")
     voice = VOICE_MAP.get(voice_key, voice_key)
 
+    # Health/wake ping support
+    if request.query.get("check"):
+        return web.Response(text="ok", content_type="text/plain")
+
     if not text:
         return web.Response(status=400, text="Missing 'text' parameter")
 

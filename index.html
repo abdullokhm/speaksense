@@ -22,7 +22,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .screen{display:none;min-height:100vh}
 .screen.on{display:block}
 
-/* ---------- Setup ---------- */
+/* Wake notification */
+.wake-bar{background:var(--blue-soft);color:var(--blue);font-size:13px;font-weight:500;padding:8px 16px;text-align:center;display:none}
+.wake-bar.on{display:block}
+
+/* Error Banner in Room */
+.err-box{background:#fef2f2;border:1px solid #fecaca;color:var(--rose);padding:10px 14px;border-radius:10px;font-size:13.5px;margin-bottom:14px;display:none;align-items:center;justify-content:space-between;width:100%;max-width:640px}
+.err-box.on{display:flex}
+.err-box button{background:var(--rose);color:#fff;padding:4px 10px;border-radius:6px;font-weight:600;font-size:12.5px}
+
+/* Setup */
 .setup{display:grid;grid-template-columns:minmax(300px,5fr) 7fr;min-height:100vh}
 .setup-l{padding:48px 56px;display:flex;flex-direction:column;justify-content:space-between;position:sticky;top:0;height:100vh}
 .brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em}
@@ -30,6 +39,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .brand i::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--blue)}
 .setup-l h1{font-size:clamp(34px,4vw,52px);line-height:1.04;letter-spacing:-.035em;font-weight:600;max-width:11em}
 .setup-l p{margin-top:18px;color:var(--ink2);max-width:30em;font-size:16px}
+.privacy-note{font-size:12px;color:var(--ink3);margin-top:12px;line-height:1.4}
 .last{font-size:13px;color:var(--ink2);border-top:1px solid var(--line2);padding-top:14px;display:none}
 .last.on{display:block}
 .last b{color:var(--ink);font-weight:600}
@@ -66,7 +76,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .warn{display:none;font-size:13px;color:var(--rose);margin-bottom:-14px}
 .warn.on{display:block}
 
-/* ---------- Exam room ---------- */
+/* Room */
 .room{display:none;flex-direction:column;min-height:100vh;padding-bottom:110px}
 .room.on{display:flex}
 .hud{display:flex;justify-content:space-between;align-items:center;padding:20px 32px;font-size:14px;color:var(--ink2)}
@@ -80,7 +90,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 [data-phase=speaking] .state{color:var(--blue)}[data-phase=speaking] .state::before{background:var(--blue)}
 [data-phase=listening] .state{color:var(--green)}[data-phase=listening] .state::before{background:var(--green);animation:blink 1.4s infinite}
 @keyframes blink{50%{opacity:.25}}
-.q{font-size:clamp(26px,3.6vw,42px);line-height:1.18;letter-spacing:-.028em;font-weight:500;text-align:center;text-wrap:balance;max-width:20em}
+.q-box{display:flex;align-items:center;justify-content:center;gap:12px;width:100%}
+.q{font-size:clamp(24px,3.4vw,38px);line-height:1.2;letter-spacing:-.028em;font-weight:500;text-align:center;text-wrap:balance;max-width:22em}
+.btn-replay{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--line2);color:var(--ink2);flex-shrink:0;transition:.15s}
+.btn-replay:hover{color:var(--blue);border-color:var(--blue)}
+.btn-replay svg{width:16px;height:16px;fill:currentColor}
 .wave{display:flex;align-items:center;justify-content:center;gap:3px;height:56px;margin:34px 0 30px}
 .wave i{width:3px;height:100%;border-radius:2px;background:var(--line2);transform:scaleY(.1);transition:transform .3s,background .3s}
 [data-phase=speaking] .wave i,[data-phase=listening] .wave i{animation:w var(--d) ease-in-out infinite alternate;transform:scaleY(var(--h))}
@@ -88,7 +102,9 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 [data-phase=listening] .wave i{background:var(--green)}
 @keyframes w{from{transform:scaleY(.12)}to{transform:scaleY(var(--h))}}
 .say{width:100%;max-width:640px;border-top:1px solid var(--line2);padding-top:16px;min-height:96px}
-.say small{display:block;font-size:13px;color:var(--ink3);margin-bottom:6px}
+.say small{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--ink3);margin-bottom:6px}
+.say small span.pause-cue{color:var(--amber);font-weight:600;display:none}
+.say small span.pause-cue.on{display:inline}
 .say p{font-size:17px;color:var(--ink);max-height:120px;overflow-y:auto}
 .say p.ph{color:var(--ink3)}
 .meter{display:flex;gap:22px;font-size:13px;color:var(--ink3);margin-top:18px}
@@ -108,15 +124,16 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .hint header button{color:var(--ink3);font-size:18px;line-height:1}
 .hint div{font-size:14.5px;color:var(--ink2);white-space:pre-line}
 
-/* ---------- Report ---------- */
+/* Report */
 .report{max-width:880px;margin:0 auto;padding:56px 32px 72px}
 .rep-top{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;padding-bottom:28px;border-bottom:1px solid var(--ink);flex-wrap:wrap}
-.rep-top small{font-size:14px;color:var(--ink2)}
+.rep-top small{font-size:13px;color:var(--ink2);display:block}
 .rep-top h1{font-size:clamp(28px,4vw,40px);letter-spacing:-.03em;font-weight:600;line-height:1.1;margin-top:4px}
-.score{font-size:clamp(52px,8vw,88px);line-height:.9;letter-spacing:-.05em;font-weight:600;color:var(--blue)}
-.verdict{font-size:19px;line-height:1.5;color:var(--ink);max-width:36em;padding:28px 0}
+.score{font-size:clamp(46px,7vw,76px);line-height:.95;letter-spacing:-.04em;font-weight:600;color:var(--blue)}
+.disclaimer{font-size:12px;color:var(--ink3);margin-top:6px}
+.verdict{font-size:18px;line-height:1.55;color:var(--ink);max-width:38em;padding:26px 0}
 .crit{border-top:1px solid var(--line2)}
-.crit div{display:grid;grid-template-columns:200px 1fr 80px;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line);font-size:15px}
+.crit div{display:grid;grid-template-columns:200px 1fr 90px;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line);font-size:15px}
 .crit .bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
 .crit .bar i{display:block;height:100%;width:0;background:var(--ink);border-radius:2px;transition:width .9s var(--ease)}
 .crit b{text-align:right;font-weight:600}
@@ -152,6 +169,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 </head>
 <body data-phase="idle">
 
+<div class="wake-bar" id="wakeBar">Connecting to interview engine… server is waking up.</div>
+
 <!-- SETUP -->
 <main class="screen on" id="sSetup">
  <div class="setup">
@@ -160,6 +179,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
    <div>
     <h1>Say it out loud before it counts.</h1>
     <p>Spoken practice for IELTS, admissions, visa and job interviews. A voiced examiner asks, you answer, and you get a scored report with better ways to phrase what you said.</p>
+    <div class="privacy-note">Microphone audio is transcribed locally via browser Web Speech API. Transcripts are evaluated by Google Gemini under strict privacy protocols.</div>
    </div>
    <div class="last" id="last">Last session: <b id="lastScore"></b> with <span id="lastEx"></span><br><span id="lastWhen"></span></div>
   </section>
@@ -168,28 +188,28 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
    <div class="warn" id="warn">Speech recognition needs Chrome or Edge. Open SpeakSense in one of those to start.</div>
    <div class="group" role="radiogroup" aria-label="Examiner">
     <h2>Examiner</h2>
-    <button class="track" role="radio" aria-checked="true" data-k="ielts"><span class="dot"></span><b>Dr. Arthur Davies<em>IELTS academic examiner</em></b><span class="desc">Probes vocabulary range, grammar and abstract reasoning.</span></button>
+    <button class="track" role="radio" aria-checked="true" data-k="ielts"><span class="dot"></span><b>Dr. Arthur Davies<em>IELTS academic examiner</em></b><span class="desc">Probes vocabulary range, grammar and personal perspectives.</span></button>
     <button class="track" role="radio" aria-checked="false" data-k="college"><span class="dot"></span><b>Dean Eleanor Vance<em>Undergraduate admissions</em></b><span class="desc">Tests intellectual curiosity and why this school, specifically.</span></button>
-    <button class="track" role="radio" aria-checked="false" data-k="visa"><span class="dot"></span><b>Officer Miller<em>F-1 / B-1 consular officer</em></b><span class="desc">Short, direct questions on funding, intent and ties to home.</span></button>
-    <button class="track" role="radio" aria-checked="false" data-k="job"><span class="dot"></span><b>Director Marcus Reed<em>Engineering executive</em></b><span class="desc">Behavioral and technical: ownership, trade-offs, conflict.</span></button>
+    <button class="track" role="radio" aria-checked="false" data-k="visa"><span class="dot"></span><b>Officer Miller<em>F-1 / B-1 consular officer</em></b><span class="desc">Direct questions on funding, intent and ties to home.</span></button>
+    <button class="track" role="radio" aria-checked="false" data-k="job"><span class="dot"></span><b>Director Marcus Reed<em>Engineering executive</em></b><span class="desc">Practical questions on problem-solving, trade-offs, and lessons.</span></button>
    </div>
 
    <div class="group">
     <h2>Scenario</h2>
     <div class="scen" id="scen">
      <button class="on" data-t="Undergraduate Admissions Interview" data-o="Harvard University">Why this university</button>
-     <button data-t="Will cognitive automation eliminate human software engineering?" data-o="Oxford University">IELTS: AI and work</button>
-     <button data-t="F-1 Student Visa: Family Funding & 214(b) Return Proof" data-o="US Embassy Tashkent">Visa: funding and ties</button>
-     <button data-t="Managing mission-critical production failure with executive conflict" data-o="Google / Meta">Job: handling a crisis</button>
+     <button data-t="Technology and everyday life" data-o="IELTS Speaking Part 3">IELTS: Technology</button>
+     <button data-t="F-1 Student Visa: Family Funding & Ties to Home" data-o="US Embassy Tashkent">Visa: funding and ties</button>
+     <button data-t="Debugging a major production outage under pressure" data-o="Tech Interview">Job: handling a crisis</button>
     </div>
     <div class="fields">
      <div class="f"><label for="topic">Topic</label><input id="topic" value="Undergraduate Admissions Interview"></div>
-     <div class="f"><label for="target">Organization</label><input id="target" value="Harvard University"></div>
+     <div class="f"><label for="target">Organization / Goal</label><input id="target" value="Harvard University"></div>
     </div>
    </div>
 
    <div class="opts">
-    <div class="f"><label>Examiner tone</label>
+    <div class="f"><label>Examiner demeanor</label>
      <div class="seg" role="radiogroup" id="segD"><button role="radio" aria-checked="false" data-v="supportive">Encouraging</button><button role="radio" aria-checked="true" data-v="standard">Realistic</button><button role="radio" aria-checked="false" data-v="brutal">High pressure</button></div></div>
     <div class="f"><label>Length</label>
      <div class="seg" role="radiogroup" id="segN"><button role="radio" aria-checked="true" data-v="3">3 questions</button><button role="radio" aria-checked="false" data-v="5">5</button><button role="radio" aria-checked="false" data-v="8">8</button></div></div>
@@ -212,9 +232,27 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
  </div>
  <div class="stage">
   <div class="state" id="state" aria-live="polite">Connecting</div>
-  <h2 class="q" id="qText">…</h2>
+  
+  <div class="err-box" id="errBox">
+   <span id="errTxt">Connection hiccup — could not process your answer.</span>
+   <button id="btnRetryTurn">Retry Answer</button>
+  </div>
+
+  <div class="q-box">
+   <h2 class="q" id="qText">…</h2>
+   <button class="btn-replay" id="btnReplay" title="Replay examiner voice" aria-label="Replay examiner voice">
+    <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+   </button>
+  </div>
+
   <div class="wave" id="wave" aria-hidden="true"></div>
-  <div class="say"><small id="sayLbl">Your answer</small><p class="ph" id="sayTxt">The examiner is asking. Your microphone opens when they finish.</p></div>
+  <div class="say">
+   <small>
+    <span id="sayLbl">Your answer</span>
+    <span class="pause-cue" id="pauseCue">Pause detected (submitting in 3s or tap Submit)</span>
+   </small>
+   <p class="ph" id="sayTxt">The examiner is asking. Your microphone opens when they finish.</p>
+  </div>
   <div class="meter">
    <span>Words<b id="mWords">0</b></span>
    <span id="mPaceBox">Pace<b id="mWpm">–</b></span>
@@ -235,14 +273,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 <main class="screen" id="sReport">
  <article class="report rep">
   <div class="rep-top">
-   <div><small>Assessment report</small><h1 id="repTitle">Performance report</h1></div>
+   <div>
+    <small>Spoken Assessment Dossier</small>
+    <h1 id="repTitle">Performance report</h1>
+    <div class="disclaimer">Automated lexical and fluency analysis based on spoken transcripts. Pronunciation & pitch are estimated.</div>
+   </div>
    <div class="score" id="repScore">…</div>
   </div>
   <p class="verdict pend" id="repVerdict">Scoring your answers…</p>
   <div class="crit">
    <div><span>Fluency and coherence</span><span class="bar"><i id="bF"></i></span><b id="sF">–</b></div>
    <div><span>Lexical range</span><span class="bar"><i id="bL"></i></span><b id="sL">–</b></div>
-   <div><span>Reasoning and logic</span><span class="bar"><i id="bR"></i></span><b id="sR">–</b></div>
+   <div><span>Reasoning and structure</span><span class="bar"><i id="bR"></i></span><b id="sR">–</b></div>
   </div>
   <h2>Say it better</h2>
   <div id="ups"></div>
@@ -264,8 +306,8 @@ const EX={
   job:{name:"Director Marcus Reed",track:"Executive Engineering Director",intro:"Thanks for coming in today. Can you tell me about a tough technical problem you worked on recently, and how you solved it?"}
 };
 const FILLERS=["um","uh","uhm","like","you know","actually","basically","literally","sort of","kind of"];
-const S={track:"ielts",tone:"standard",total:3,turn:1,hist:[],live:false,sec:0,words:0,fill:0,tFill:0,q:"",fin:"",int:"",listening:false,speaking:false,muted:false};
-let rec=null,silence=null,audio=null,clock=null;
+const S={track:"ielts",tone:"standard",total:3,turn:1,hist:[],live:false,sec:0,words:0,userSpeakingSec:0,fill:0,tFill:0,q:"",fin:"",int:"",listening:false,speaking:false,muted:false,lastTurnText:""};
+let rec=null,silence=null,silenceTimer=null,audio=null,clock=null;
 
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -275,42 +317,95 @@ function phase(p,label){document.body.dataset.phase=p;if(label)$('state').textCo
 /* waveform bars */
 $('wave').innerHTML=Array.from({length:36},(_,i)=>{const h=(.25+.75*Math.abs(Math.sin(i*1.7)*Math.cos(i*.45))).toFixed(2);return `<i style="--h:${h};--d:${(.5+(i*37%60)/100).toFixed(2)}s"></i>`}).join('');
 
+/* Cold-start wakeup ping */
+async function pingServer(){
+  try{
+    const c=new AbortController(),to=setTimeout(()=>c.abort(),4000);
+    const r=await fetch('/api/tts?check=1',{signal:c.signal});
+    clearTimeout(to);
+  }catch(_){
+    $('wakeBar').classList.add('on');
+    setTimeout(()=>{$('wakeBar').classList.remove('on')},5000);
+  }
+}
+pingServer();
+
 /* setup interactions */
 function radio(group,cb){group.addEventListener('click',e=>{const b=e.target.closest('[role=radio]');if(!b)return;group.querySelectorAll('[role=radio]').forEach(x=>x.setAttribute('aria-checked',x===b));cb(b)})}
 radio(document.querySelector('.group[role=radiogroup]'),b=>S.track=b.dataset.k);
 radio($('segD'),b=>S.tone=b.dataset.v);
 radio($('segN'),b=>S.total=+b.dataset.v);
 $('scen').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$('scen').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));$('topic').value=b.dataset.t;$('target').value=b.dataset.o});
-$('btnAud').onclick=()=>speak(`Good day. I am ${EX[S.track].name}. Audio check complete.`);
+
+/* Audition button with debounce */
+let audBusy=false;
+$('btnAud').onclick=async()=>{
+  if(audBusy)return;
+  audBusy=true;
+  $('btnAud').textContent="Loading voice…";$('btnAud').disabled=true;
+  await speak(`Good day. I am ${EX[S.track].name}. Audio check complete.`);
+  audBusy=false;
+  $('btnAud').textContent="Hear the examiner";$('btnAud').disabled=false;
+};
 $('btnStart').onclick=start;
 
-/* ---------- Audio: MP3 from /api/tts, HTML5 Audio only ---------- */
+/* ---------- Audio: MP3 from /api/tts with 7s timeout ---------- */
 function stopAudio(){if(audio){audio.onended=audio.onerror=null;audio.pause();if(audio._u)URL.revokeObjectURL(audio._u);audio=null}}
 async function speak(text,done){
   stopAudio();
-  pauseMic();                       // mic is muted for the whole time the examiner is audible
+  pauseMic();
   S.speaking=true;
   let src;
+  const c=new AbortController(),timeout=setTimeout(()=>c.abort(),7000);
   try{
-    const r=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice:S.track})});
-    if(r.status===405)src=`/api/tts?text=${encodeURIComponent(text)}&voice=${S.track}`;  // legacy GET-only backend
-    else if(!r.ok)throw 0;
-    else src=URL.createObjectURL(await r.blob());
-  }catch(_){S.speaking=false;if(done)setTimeout(done,900);return}  // no audio available: carry on silently
+    const r=await fetch('/api/tts',{
+      method:'POST',
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text,voice:S.track}),
+      signal:c.signal
+    });
+    clearTimeout(timeout);
+    if(r.status===405){
+      src=`/api/tts?text=${encodeURIComponent(text)}&voice=${S.track}`;
+    }else if(!r.ok){
+      throw new Error(`TTS failed with status ${r.status}`);
+    }else{
+      src=URL.createObjectURL(await r.blob());
+    }
+  }catch(err){
+    clearTimeout(timeout);
+    console.warn("TTS fallback engaged:",err);
+    S.speaking=false;
+    if(done)setTimeout(done,600);
+    return;
+  }
+
   const a=new Audio(src);a._u=src.startsWith('blob:')?src:null;audio=a;
   const end=()=>{if(audio!==a)return;stopAudio();S.speaking=false;done&&done()};
   a.onended=end;a.onerror=end;
   a.play().catch(end);
 }
 
+/* Replay examiner voice button */
+$('btnReplay').onclick=()=>{
+  if(S.speaking||!S.q)return;
+  speak(S.q);
+};
+
 /* ---------- Mic control ---------- */
-function pauseMic(){clearTimeout(silence);try{rec&&rec.stop()}catch(_){}}
+function clearSilence(){
+  clearTimeout(silence);
+  clearTimeout(silenceTimer);
+  $('pauseCue').classList.remove('on');
+}
+function pauseMic(){clearSilence();try{rec&&rec.stop()}catch(_){}}
 function resumeMic(){if(S.listening&&!S.blocked&&!S.muted&&!S.speaking&&S.live&&rec){try{rec.start()}catch(_){}}}
+
 function initRec(){
   if(!SR)return;
   rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang="en-US";
   rec.onresult=e=>{
-    if(S.speaking||!S.listening)return;   // never transcribe the examiner
+    if(S.speaking||!S.listening)return;
     let interim="";
     for(let i=e.resultIndex;i<e.results.length;i++){
       const r=e.results[i];
@@ -321,19 +416,40 @@ function initRec(){
     if(!txt)return;
     $('sayTxt').textContent=txt;$('sayTxt').classList.remove('ph');
     countFillers(txt);
-    clearTimeout(silence);
-    silence=setTimeout(()=>{if(S.listening&&txt.length>3)endTurn(txt)},2200);
+
+    // Human-calibrated pause detection: 4.5s total timeout with visual indicator
+    clearSilence();
+    silenceTimer=setTimeout(()=>{
+      if(S.listening&&txt.length>4){
+        $('pauseCue').classList.add('on');
+      }
+    },1500);
+
+    silence=setTimeout(()=>{
+      if(S.listening&&txt.length>3){
+        $('pauseCue').classList.remove('on');
+        endTurn(txt);
+      }
+    },4500);
   };
-  rec.onerror=e=>{console.debug("speech:",e.error);if(e.error==='not-allowed'||e.error==='service-not-allowed'){S.blocked=true;pauseMic();if(S.listening)showBlocked()}};
+  rec.onerror=e=>{
+    console.debug("speech:",e.error);
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+      S.blocked=true;pauseMic();
+      if(S.listening)showBlocked();
+    }
+  };
   rec.onend=()=>resumeMic();
 }
+
 function micForbidden(){try{const p=document.permissionsPolicy||document.featurePolicy;return !!p&&!p.allowsFeature('microphone')}catch(_){return false}}
 function showBlocked(){
   $('state').textContent="Mic blocked. Type your answer";
   const t=$('sayTxt');t.contentEditable="true";t.classList.add('ph');
-  t.textContent="This page can't use your microphone (the preview blocks it). Click here and type your answer, or open the file on HTTPS and allow the mic.";
+  t.textContent="This page cannot access your microphone. Click here to type your answer, or allow microphone access in your browser settings.";
 }
 $('sayTxt').addEventListener('focus',()=>{const t=$('sayTxt');if(S.blocked&&t.classList.contains('ph')){t.textContent="";t.classList.remove('ph')}});
+
 function countFillers(t){
   let n=0;FILLERS.forEach(f=>{const m=t.toLowerCase().match(new RegExp(`\\b${f}\\b`,'g'));if(m)n+=m.length});
   S.tFill=n;const tot=S.fill+n;$('mFill').textContent=tot;$('mFillBox').className=tot>3?'al':'';
@@ -342,79 +458,128 @@ function countFillers(t){
 /* ---------- Session ---------- */
 function start(){
   const ex=EX[S.track];
-  Object.assign(S,{blocked:micForbidden(),turn:1,hist:[],live:true,sec:0,words:0,fill:0,tFill:0,listening:false,speaking:false,fin:"",int:""});
+  Object.assign(S,{
+    blocked:micForbidden(),turn:1,hist:[],live:true,sec:0,words:0,userSpeakingSec:0,
+    fill:0,tFill:0,listening:false,speaking:false,fin:"",int:"",lastTurnText:""
+  });
   $('rName').textContent=ex.name;$('mWords').textContent=0;$('mWpm').textContent="–";$('mFill').textContent=0;
   $('mPaceBox').className=$('mFillBox').className="";$('rTime').textContent="00:00";
+  $('errBox').classList.remove('on');
   buildProg();updateTurn();show('sRoom');
+  
   clearInterval(clock);
   clock=setInterval(()=>{
-    S.sec++;$('rTime').textContent=String(Math.floor(S.sec/60)).padStart(2,'0')+":"+String(S.sec%60).padStart(2,'0');
-    if(S.sec>4&&S.words>0){const w=Math.round(S.words/(S.sec/60));$('mWpm').textContent=w;$('mPaceBox').className=(w<110||w>175)?'al':''}
+    S.sec++;
+    $('rTime').textContent=String(Math.floor(S.sec/60)).padStart(2,'0')+":"+String(S.sec%60).padStart(2,'0');
+    // True speaking pace: only count time when candidate microphone is open and active
+    if(S.listening&&!S.speaking&&!S.muted){
+      S.userSpeakingSec++;
+      if(S.userSpeakingSec>3&&S.words>0){
+        const wpm=Math.round((S.words/S.userSpeakingSec)*60);
+        $('mWpm').textContent=wpm;
+        $('mPaceBox').className=(wpm<100||wpm>185)?'al':'';
+      }
+    }
   },1000);
+
   initRec();
-  const tg=$('target').value.trim();let intro=ex.intro;
+  const tg=$('target').value.trim();
+  let intro=ex.intro;
   if(tg&&S.track==='college')intro=`Welcome. I am ${ex.name}. Why did you choose ${tg}, and what are you most excited to study here?`;
   if(tg&&S.track==='visa')intro=`Good morning. You are applying to study at ${tg}. Why did you choose this university, and how will your family fund your studies?`;
   ask(intro);
 }
+
 function buildProg(){$('prog').innerHTML=Array.from({length:S.total},()=>'<i></i>').join('')}
 function updateTurn(){
   const n=Math.min(S.turn,S.total);$('rTurn').textContent=`Question ${n} of ${S.total}`;
   [...$('prog').children].forEach((el,i)=>el.className=i<n-1?'d':i===n-1?'c':'');
 }
+
 function ask(text,closing){
   S.q=text;S.listening=false;S.fin=S.int="";$('sayTxt').removeAttribute('contenteditable');
   $('qText').textContent=text;
-  $('sayLbl').textContent="Your answer";$('sayTxt').textContent="The examiner is speaking. Your microphone opens when they finish.";$('sayTxt').classList.add('ph');
+  $('sayLbl').textContent="Your answer";
+  $('pauseCue').classList.remove('on');
+  $('sayTxt').textContent="The examiner is speaking. Your microphone opens when they finish.";$('sayTxt').classList.add('ph');
+  $('errBox').classList.remove('on');
   phase('speaking',`${EX[S.track].name} is speaking`);
   S.hist.push({speaker:'ai',text});
   speak(text,()=>{if(!S.live)return;closing?finish():openFloor()});
 }
+
 function openFloor(){
   S.listening=true;S.fin=S.int="";S.tFill=0;
-  phase('listening','Your turn. Mic is live');
-  $('sayTxt').textContent=S.muted?"Mic is muted. Unmute to answer.":"Speak your answer…";$('sayTxt').classList.add('ph');
+  phase('listening','Your turn. Speak or tap Submit');
+  $('sayTxt').textContent=S.muted?"Mic is muted. Unmute to answer.":"Speak your answer… (or tap Submit Answer when done)";$('sayTxt').classList.add('ph');
   if(S.blocked)showBlocked();else resumeMic();
 }
+
 async function post(url,body,ms){
   const c=new AbortController(),t=setTimeout(()=>c.abort(),ms||12000);
-  try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:c.signal});if(!r.ok)throw new Error(r.status);return await r.json()}
-  finally{clearTimeout(t)}
+  try{
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:c.signal});
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  }finally{clearTimeout(t)}
 }
+
 async function endTurn(text){
-  S.listening=false;pauseMic();
+  S.listening=false;pauseMic();clearSilence();
+  S.lastTurnText=text;
   S.hist.push({speaker:'user',text});
   S.words+=text.split(/\s+/).filter(Boolean).length;S.fill+=S.tFill;S.tFill=0;
   $('mWords').textContent=S.words;
   S.turn++;
-  if(S.turn>S.total){updateTurn();[...$('prog').children].forEach(e=>e.className='d');return ask("Thank you. That concludes the examination. Let us review your formal evaluation.",true)}
+  
+  if(S.turn>S.total){
+    updateTurn();
+    [...$('prog').children].forEach(e=>e.className='d');
+    return ask("Thank you. That concludes the examination. Let us review your formal evaluation.",true);
+  }
+
   updateTurn();
-  phase('thinking','Examiner is thinking');
+  phase('thinking','Examiner is listening & thinking…');
   $('sayLbl').textContent="Recorded";
   const tg=$('target').value.trim(),tp=$('topic').value.trim();
+
   try{
     const d=await post('/api/comprehend',{
       user_text:text,mode:S.track,turn_count:S.turn-1,history:S.hist,
-      /* legacy aliases */ message:text,persona:S.track,turn:S.turn-1,topic:tp,target:tg,difficulty:S.tone
-    },8000);
+      message:text,persona:S.track,turn:S.turn-1,topic:tp,target:tg,difficulty:S.tone
+    },9000);
+    $('errBox').classList.remove('on');
     ask(d.reply);
   }catch(e){
-    console.debug("comprehend:",e);
-    const f=[
-      "That makes sense. Can you tell me a little more about that?",
-      "Interesting point. Can you give me a specific example of what you mean?",
-      "Why do you feel that way? What made you come to that conclusion?"
-    ];
-    ask(f[Math.floor(Math.random()*f.length)]);
+    console.warn("Comprehend error:",e);
+    $('errTxt').textContent="Network hiccup: examiner could not reach analysis server.";
+    $('errBox').classList.add('on');
+    phase('idle','Paused (Network error)');
   }
 }
-$('bGo').onclick=()=>{const t=S.blocked?($('sayTxt').classList.contains('ph')?'':$('sayTxt').textContent.trim()):(S.fin+S.int).trim();if(S.listening&&t.length>2)endTurn(t)};
+
+/* Retry button on error */
+$('btnRetryTurn').onclick=()=>{
+  $('errBox').classList.remove('on');
+  if(S.lastTurnText){
+    endTurn(S.lastTurnText);
+  }else{
+    openFloor();
+  }
+};
+
+$('bGo').onclick=()=>{
+  const t=S.blocked?($('sayTxt').classList.contains('ph')?'':$('sayTxt').textContent.trim()):(S.fin+S.int).trim();
+  if(S.listening&&t.length>1)endTurn(t);
+};
+
 $('bRedo').onclick=()=>{
   if(!S.listening)return;
-  clearTimeout(silence);S.fin=S.int="";S.tFill=0;
+  clearSilence();S.fin=S.int="";S.tFill=0;
   $('sayTxt').textContent="Cleared. Speak again…";$('sayTxt').classList.add('ph');
   try{rec.stop()}catch(_){}
 };
+
 $('bMute').onclick=()=>{
   S.muted=!S.muted;$('bMute').setAttribute('aria-pressed',S.muted);$('bMute').textContent=S.muted?"Unmute mic":"Mute mic";
   if(S.muted)pauseMic();else resumeMic();
@@ -430,43 +595,58 @@ $('bHint').onclick=async()=>{
     const d=await post('/api/hint',{last_question:S.q,mode:S.track,
       lastQuestion:S.q,persona:S.track,topic:$('topic').value.trim(),target:$('target').value.trim(),history:S.hist});
     $('hintTxt').textContent=d.hint;
-  }catch(_){$('hintTxt').textContent="• Give your conclusion first, then support it.\n• Back the claim with one concrete example or number."}
+  }catch(_){$('hintTxt').textContent="• State your conclusion directly first.\n• Support it with one concrete example from your experience."}
 };
 $('hintX').onclick=()=>$('hint').classList.remove('on');
 
-/* ---------- Report ---------- */
+/* ---------- Report with Honest Scores ---------- */
 async function finish(){
-  S.live=false;S.listening=false;stopAudio();S.speaking=false;pauseMic();clearInterval(clock);
+  S.live=false;S.listening=false;stopAudio();S.speaking=false;pauseMic();clearSilence();clearInterval(clock);
   $('hint').classList.remove('on');phase('idle');
   const ex=EX[S.track];
   $('repTitle').textContent=`${ex.name}, ${ex.track}`;
-  $('repScore').textContent="…";$('repVerdict').textContent="Scoring your answers…";$('repVerdict').classList.add('pend');
+  $('repScore').textContent="…";$('repVerdict').textContent="Evaluating transcript…";$('repVerdict').classList.add('pend');
   ['F','L','R'].forEach(k=>{$('s'+k).textContent="–";$('b'+k).style.width=0});
   $('ups').innerHTML="";
   $('tr').innerHTML=S.hist.map(t=>`<div class="${t.speaker}"><small>${t.speaker==='ai'?esc(ex.name):'You'}</small>${esc(t.text)}</div>`).join('')||'<div>No answers recorded.</div>';
   show('sReport');
+
   try{
-    const d=await post('/api/analyze',{history:S.hist,mode:S.track,persona:S.track,topic:$('topic').value.trim(),target:$('target').value.trim()},30000);
-    $('repScore').textContent=d.overallScore||"Done";
-    $('repVerdict').textContent=d.verdict||"You kept the conversation moving and adapted to follow-up questions.";$('repVerdict').classList.remove('pend');
-    const sc={F:d.fluencyScore||"8.0 / 9.0",L:d.lexicalScore||"7.5 / 9.0",R:d.logicScore||"8.0 / 9.0"};
+    const d=await post('/api/analyze',{history:S.hist,mode:S.track,persona:S.track,topic:$('topic').value.trim(),target:$('target').value.trim()},25000);
+    
+    // HONEST DISPLAY: Never invent fake 8.0s if missing
+    $('repScore').textContent=d.overallScore||"Not Scored";
+    $('repVerdict').textContent=d.verdict||"Performance evaluation completed.";
+    $('repVerdict').classList.remove('pend');
+    
+    const sc={
+      F:d.fluencyScore||"—",
+      L:d.lexicalScore||"—",
+      R:d.logicScore||"—"
+    };
+
     for(const k in sc){
       $('s'+k).textContent=sc[k];
       const m=String(sc[k]).match(/([\d.]+)\s*(?:\/\s*([\d.]+))?/);
       const pct=m?Math.min(100,parseFloat(m[1])/parseFloat(m[2]||9)*100):0;
       requestAnimationFrame(()=>requestAnimationFrame(()=>$('b'+k).style.width=pct+'%'));
     }
-    $('ups').innerHTML=(d.upgrades&&d.upgrades.length?d.upgrades.map(u=>`<div class="up"><div class="o">${esc(u.original)}</div><div class="n">${esc(u.improved)}</div><div class="w">${esc(u.why)}</div></div>`).join(''):'<div class="up"><div class="w">Your vocabulary held up well. No rewrites needed.</div></div>');
+
+    $('ups').innerHTML=(d.upgrades&&d.upgrades.length?d.upgrades.map(u=>`<div class="up"><div class="o">${esc(u.original)}</div><div class="n">${esc(u.improved)}</div><div class="w">${esc(u.why)}</div></div>`).join(''):'<div class="up"><div class="w">No significant upgrades identified.</div></div>');
+
     try{
       const r=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
       r.push({date:new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}),examiner:ex.name,score:d.overallScore||"Completed",words:S.words});
       localStorage.setItem('speaksense_sessions',JSON.stringify(r.slice(-25)));
     }catch(_){}
   }catch(e){
-    console.debug("analyze:",e);
-    $('repScore').textContent="–";$('repVerdict').textContent="Scoring failed. Your transcript is below. Check your connection and start a new session to try again.";$('repVerdict').classList.remove('pend');
+    console.warn("analyze failure:",e);
+    $('repScore').textContent="–";
+    $('repVerdict').textContent="Diagnostic server was unable to score this session. Your transcript is preserved below. Check your connection and try again.";
+    $('repVerdict').classList.remove('pend');
   }
 }
+
 $('bCopy').onclick=()=>{
   const ex=EX[S.track];
   const t=`SpeakSense assessment\nExaminer: ${ex.name} (${ex.track})\nScore: ${$('repScore').textContent}\n${$('repVerdict').textContent}\nWords: ${S.words} | Fillers: ${S.fill}`;
