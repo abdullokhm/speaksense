@@ -151,6 +151,66 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .rep-foot div{display:flex;gap:10px;flex-wrap:wrap}
 .pend{color:var(--ink3)}
 
+
+/* CEFR Lexical Distribution */
+.cefr-card{margin-top:28px;padding:22px;background:var(--paper);border:1px solid var(--line);border-radius:12px}
+.cefr-hdr{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px}
+.cefr-hdr b{color:var(--blue);font-size:16px}
+.cefr-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--line);margin:10px 0}
+.cefr-bar i{height:100%;transition:width .6s var(--ease)}
+.cefr-bar i.a1{background:#94a3b8}
+.cefr-bar i.b1{background:#3b82f6}
+.cefr-bar i.b2{background:#10b981}
+.cefr-bar i.c1{background:#8b5cf6}
+.cefr-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink2);margin-top:6px}
+.cefr-legend span{display:flex;align-items:center;gap:5px}
+.cefr-legend em{width:9px;height:9px;border-radius:50%;display:inline-block}
+.cefr-legend .a1 em{background:#94a3b8}
+.cefr-legend .b1 em{background:#3b82f6}
+.cefr-legend .b2 em{background:#10b981}
+.cefr-legend .c1 em{background:#8b5cf6}
+.cefr-tip{font-size:13.5px;color:var(--ink2);margin-top:12px;line-height:1.45}
+
+/* Candidate audio player pill */
+.btn-play-clip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:var(--fog);border:1px solid var(--line2);border-radius:20px;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;margin-left:8px;transition:.15s}
+.btn-play-clip:hover{background:var(--paper);border-color:var(--blue);color:var(--blue)}
+.btn-play-clip.playing{background:var(--blue-soft);color:var(--blue);border-color:var(--blue)}
+
+/* Upgrade listen button */
+.btn-hear-up{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;margin-left:8px;font-size:12px;font-weight:600;color:var(--blue);border:1px solid var(--blue-soft);border-radius:6px;background:var(--blue-soft);transition:.15s;vertical-align:middle;cursor:pointer}
+.btn-hear-up:hover{background:var(--blue);color:#fff}
+
+/* Cue Card in Exam Room */
+.cue-card{width:100%;max-width:680px;background:var(--paper);border:1.5px solid var(--line2);border-radius:14px;padding:24px;box-shadow:0 10px 30px -10px rgba(20,23,28,.08);margin-bottom:20px}
+.cue-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.cue-badge{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:3px 8px;background:var(--blue-soft);color:var(--blue);border-radius:6px}
+.cue-timer-badge{font-size:14px;font-weight:600;color:var(--amber)}
+.cue-timer-badge.ready{color:var(--green)}
+.cue-title{font-size:20px;font-weight:600;color:var(--ink);line-height:1.3;margin-bottom:12px}
+.cue-sub{font-size:14px;font-weight:500;color:var(--ink2);margin-bottom:8px}
+.cue-list{list-style:disc;margin-left:22px;font-size:14.5px;color:var(--ink);line-height:1.6;margin-bottom:16px}
+.cue-prep-box{background:var(--fog);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.cue-prep-box span{font-size:13.5px;color:var(--ink2)}
+.cue-notes-area{margin-top:14px}
+.cue-notes-area label{display:block;font-size:13px;font-weight:500;color:var(--ink3);margin-bottom:6px}
+.cue-notes-area textarea{width:100%;height:68px;padding:10px;font:inherit;font-size:14px;background:#fff;border:1px solid var(--line2);border-radius:8px;resize:vertical}
+
+/* Cue speaking progress bar */
+.cue-speak-meter{width:100%;max-width:680px;margin-bottom:16px}
+.cue-speak-labels{display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink3);margin-bottom:4px}
+.cue-progress-track{height:8px;background:var(--line);border-radius:4px;overflow:hidden;position:relative}
+.cue-progress-fill{height:100%;width:0%;background:var(--amber);transition:width .5s linear, background .3s}
+.cue-progress-fill.ok{background:var(--green)}
+.cue-progress-target{position:absolute;left:50%;top:0;bottom:0;width:2px;background:var(--ink3)}
+
+/* Trajectory on Setup */
+.trend-card{margin-top:20px;padding-top:16px;border-top:1px solid var(--line2)}
+.trend-head{font-size:13px;font-weight:600;color:var(--ink3);margin-bottom:8px;display:flex;justify-content:space-between}
+.trend-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px}
+.trend-chip{padding:4px 8px;border-radius:6px;background:#fff;border:1px solid var(--line2);font-size:12px;white-space:nowrap}
+.trend-chip b{color:var(--blue);font-weight:600}
+.trend-chip small{color:var(--ink3);margin-left:4px}
+
 @media(max-width:860px){
   .setup{grid-template-columns:1fr}
   .setup-l{position:static;height:auto;padding:28px 24px;gap:28px}
@@ -182,6 +242,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
     <div class="privacy-note">Microphone audio is transcribed locally via browser Web Speech API. Transcripts are evaluated by Google Gemini under strict privacy protocols.</div>
    </div>
    <div class="last" id="last">Last session: <b id="lastScore"></b> with <span id="lastEx"></span><br><span id="lastWhen"></span></div>
+   <div class="trend-card" id="trendCard" style="display:none;">
+    <div class="trend-head"><span>Score Trajectory</span><span id="trendTotal">0 sessions</span></div>
+    <div class="trend-row" id="trendRow"></div>
+   </div>
   </section>
 
   <section class="setup-r">
@@ -211,8 +275,10 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
    <div class="opts">
     <div class="f"><label>Examiner demeanor</label>
      <div class="seg" role="radiogroup" id="segD"><button role="radio" aria-checked="false" data-v="supportive">Encouraging</button><button role="radio" aria-checked="true" data-v="standard">Realistic</button><button role="radio" aria-checked="false" data-v="brutal">High pressure</button></div></div>
-    <div class="f"><label>Length</label>
+    <div class="f" id="fLength"><label>Length</label>
      <div class="seg" role="radiogroup" id="segN"><button role="radio" aria-checked="true" data-v="3">3 questions</button><button role="radio" aria-checked="false" data-v="5">5</button><button role="radio" aria-checked="false" data-v="8">8</button></div></div>
+    <div class="f" id="fFormat" style="grid-column:1/-1"><label>Interview format</label>
+     <div class="seg" role="radiogroup" id="segFormat"><button role="radio" aria-checked="true" data-v="discussion">Interactive Discussion (Q&A)</button><button role="radio" aria-checked="false" data-v="cuecard">IELTS Cue Card (Part 2 Long Turn)</button></div></div>
    </div>
 
    <div class="launch">
@@ -238,11 +304,47 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
    <button id="btnRetryTurn">Retry Answer</button>
   </div>
 
-  <div class="q-box">
+  <div class="q-box" id="qBox">
    <h2 class="q" id="qText">…</h2>
    <button class="btn-replay" id="btnReplay" title="Replay examiner voice" aria-label="Replay examiner voice">
     <svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
    </button>
+  </div>
+
+  <!-- IELTS Part 2 Cue Card Container -->
+  <div class="cue-card" id="cueCard" style="display:none;">
+   <div class="cue-top">
+    <span class="cue-badge">Candidate Task Card (Part 2)</span>
+    <span class="cue-timer-badge" id="cueTimer">Preparation: 01:00</span>
+   </div>
+   <h3 class="cue-title" id="cueTopic">Describe a memorable journey you have taken.</h3>
+   <div class="cue-sub">You should say:</div>
+   <ul class="cue-list" id="cueBullets">
+    <li>where you went</li>
+    <li>what kind of transport you used</li>
+    <li>what happened during the journey</li>
+    <li>and explain why this journey was so memorable to you.</li>
+   </ul>
+   <div class="cue-prep-box" id="cuePrepBox">
+    <span>Take 1 minute to plan what to say.</span>
+    <button class="btn s" id="btnSkipPrep">Start speaking now (Skip prep)</button>
+   </div>
+   <div class="cue-notes-area" id="cueNotesArea">
+    <label for="cueNotes">Scratchpad notes (optional):</label>
+    <textarea id="cueNotes" placeholder="Jot down keywords, ideas, or vocabulary collocations..."></textarea>
+   </div>
+  </div>
+
+  <!-- Cue Speaking Progress Bar -->
+  <div class="cue-speak-meter" id="cueSpeakMeter" style="display:none;">
+   <div class="cue-speak-labels">
+    <span>Speaking time: <b id="cueSpeakSec">00:00</b></span>
+    <span>Target: 2 minutes (min 1 min)</span>
+   </div>
+   <div class="cue-progress-track">
+    <div class="cue-progress-fill" id="cueProgFill"></div>
+    <div class="cue-progress-target" title="1 Minute Milestone"></div>
+   </div>
   </div>
 
   <div class="wave" id="wave" aria-hidden="true"></div>
@@ -286,6 +388,27 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
    <div><span>Lexical range</span><span class="bar"><i id="bL"></i></span><b id="sL">–</b></div>
    <div><span>Reasoning and structure</span><span class="bar"><i id="bR"></i></span><b id="sR">–</b></div>
   </div>
+
+  <!-- CEFR Lexical Profile -->
+  <div class="cefr-card" id="cefrCard">
+   <div class="cefr-hdr">
+    <span>Lexical CEFR Profile: <b id="cefrLvl">B2 - Upper Intermediate</b></span>
+    <span class="cue-badge">Lexical Range</span>
+   </div>
+   <div class="cefr-bar">
+    <i class="a1" id="cBarA" style="width: 25%"></i>
+    <i class="b1" id="cBarB1" style="width: 45%"></i>
+    <i class="b2" id="cBarB2" style="width: 20%"></i>
+    <i class="c1" id="cBarC" style="width: 10%"></i>
+   </div>
+   <div class="cefr-legend">
+    <span class="a1"><em></em> A1/A2 Elementary (<b id="cTxtA">25%</b>)</span>
+    <span class="b1"><em></em> B1 Intermediate (<b id="cTxtB1">45%</b>)</span>
+    <span class="b2"><em></em> B2 Upper-Int (<b id="cTxtB2">20%</b>)</span>
+    <span class="c1"><em></em> C1/C2 Advanced (<b id="cTxtC">10%</b>)</span>
+   </div>
+   <p class="cefr-tip" id="cefrTip">Your vocabulary is well-grounded in B1/B2. Incorporating less common lexical collocations will elevate your Lexical Resource mark.</p>
+  </div>
   <h2>Say it better</h2>
   <div id="ups"></div>
   <h2>Transcript</h2>
@@ -305,11 +428,168 @@ const EX={
   visa:{name:"Officer Miller",track:"Consular Visa Officer",intro:"Good morning. You are applying for an F-1 student visa. Why did you choose this university, and how will you pay for your studies?"},
   job:{name:"Director Marcus Reed",track:"Executive Engineering Director",intro:"Thanks for coming in today. Can you tell me about a tough technical problem you worked on recently, and how you solved it?"}
 };
+
+const CUE_CARDS=[
+  {
+    topic:"Describe a memorable journey you have taken.",
+    bullets:[
+      "where you went and who you went with",
+      "what kind of transport you used",
+      "what happened during the journey",
+      "and explain why this journey was so memorable to you."
+    ]
+  },
+  {
+    topic:"Describe a skill that was difficult for you to learn at first.",
+    bullets:[
+      "what the skill is and why you decided to learn it",
+      "how you practiced and overcame the challenge",
+      "who helped you or what resources you used",
+      "and explain how you felt once you mastered it."
+    ]
+  },
+  {
+    topic:"Describe an environmental problem in your city or country.",
+    bullets:[
+      "what the issue is and what causes it",
+      "how it impacts the daily lives of residents",
+      "what measures the government or public are taking",
+      "and explain what you think is the best solution."
+    ]
+  },
+  {
+    topic:"Describe a person who has had an inspiring influence on your life.",
+    bullets:[
+      "who this person is and how you know them",
+      "what special qualities or achievements they possess",
+      "how they influenced your mindset or career goals",
+      "and explain what lessons you learned from them."
+    ]
+  },
+  {
+    topic:"Describe a traditional festival or celebration in your culture.",
+    bullets:[
+      "what festival it is and when it takes place",
+      "what activities, foods, or clothing are associated with it",
+      "who you usually celebrate it with",
+      "and explain why this celebration is meaningful to you."
+    ]
+  }
+];
+
 const FILLERS=["um","uh","uhm","like","you know","actually","basically","literally","sort of","kind of"];
-const S={track:"ielts",tone:"standard",total:3,turn:1,hist:[],live:false,sec:0,words:0,userSpeakingSec:0,fill:0,tFill:0,q:"",fin:"",int:"",listening:false,speaking:false,muted:false,lastTurnText:""};
-let rec=null,silence=null,silenceTimer=null,clock=null;
-let sid=0; // Generation ID to prevent race conditions and cross-session state leaks
+const S={
+  track:"ielts",
+  format:"discussion", // "discussion" or "cuecard"
+  tone:"standard",
+  total:3,
+  turn:1,
+  hist:[],
+  live:false,
+  sec:0,
+  words:0,
+  userSpeakingSec:0,
+  fill:0,
+  tFill:0,
+  q:"",
+  fin:"",
+  int:"",
+  listening:false,
+  speaking:false,
+  muted:false,
+  lastTurnText:"",
+  activeCueCard:null,
+  cuePrepSec:60,
+  cueSpeakSec:0
+};
+
+let rec=null,silence=null,silenceTimer=null,clock=null,cuePrepTimer=null;
+let sid=0;
 let micErrCount=0;
+
+// MediaRecorder candidate audio capture
+let audioStream=null;
+let mediaRecorder=null;
+let recordedChunks=[];
+let activePlaybackAudio=null;
+
+async function initUserAudioStream(){
+  if(audioStream)return audioStream;
+  try{
+    audioStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    return audioStream;
+  }catch(e){
+    console.warn("Microphone stream unavailable:",e);
+    return null;
+  }
+}
+
+function startAudioRecording(){
+  recordedChunks=[];
+  if(!audioStream)return;
+  try{
+    const mime=MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':
+               MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'';
+    mediaRecorder=mime?new MediaRecorder(audioStream,{mimeType:mime}):new MediaRecorder(audioStream);
+    mediaRecorder.ondataavailable=e=>{
+      if(e.data&&e.data.size>0)recordedChunks.push(e.data);
+    };
+    mediaRecorder.start(200);
+  }catch(e){
+    console.warn("MediaRecorder start notice:",e);
+  }
+}
+
+function stopAudioRecording(){
+  return new Promise(resolve=>{
+    if(!mediaRecorder||mediaRecorder.state==='inactive'){
+      resolve(null);
+      return;
+    }
+    mediaRecorder.onstop=()=>{
+      if(recordedChunks.length>0){
+        try{
+          const blob=new Blob(recordedChunks,{type:recordedChunks[0]?.type||'audio/webm'});
+          resolve(URL.createObjectURL(blob));
+        }catch(_){resolve(null);}
+      }else{
+        resolve(null);
+      }
+    };
+    try{mediaRecorder.stop();}catch(_){resolve(null);}
+  });
+}
+
+window.playCandidateAudio=function(url,btn){
+  if(activePlaybackAudio){
+    activePlaybackAudio.pause();
+    document.querySelectorAll('.btn-play-clip').forEach(b=>{
+      b.classList.remove('playing');
+      b.textContent="▶ Listen to your answer";
+    });
+    if(activePlaybackAudio._src===url){
+      activePlaybackAudio=null;
+      return;
+    }
+  }
+  const a=new Audio(url);
+  a._src=url;
+  activePlaybackAudio=a;
+  btn.classList.add('playing');
+  btn.textContent="⏸ Pause playback";
+  const resetBtn=()=>{
+    btn.classList.remove('playing');
+    btn.textContent="▶ Listen to your answer";
+    activePlaybackAudio=null;
+  };
+  a.onended=resetBtn;
+  a.onerror=resetBtn;
+  a.play().catch(resetBtn);
+};
+
+window.playUpgradeAudio=function(text){
+  speak(text);
+};
 
 // Persistent unlocked audio element for mobile Safari / Chrome
 let audioEl=null;
@@ -360,15 +640,28 @@ radio(document.querySelector('.group[role=radiogroup]'),b=>{
   S.track=b.dataset.k;
   const d=TRACK_DEFAULTS[S.track];
   if(d){$('topic').value=d.topic;$('target').value=d.target}
+  // Only show Cue Card option when IELTS is selected
+  $('fFormat').style.display=S.track==='ielts'?'block':'none';
+  if(S.track!=='ielts'&&S.format==='cuecard'){
+    S.format='discussion';
+    $('segFormat').querySelectorAll('button').forEach(btn=>btn.setAttribute('aria-checked',btn.dataset.v==='discussion'));
+    $('fLength').style.display='block';
+  }
 });
 radio($('segD'),b=>S.tone=b.dataset.v);
 radio($('segN'),b=>S.total=+b.dataset.v);
+radio($('segFormat'),b=>{
+  S.format=b.dataset.v;
+  $('fLength').style.display=S.format==='cuecard'?'none':'block';
+});
+
 $('scen').addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
   $('scen').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
   if(b.dataset.k){
     S.track=b.dataset.k;
     document.querySelectorAll('.group[role=radiogroup] [role=radio]').forEach(x=>x.setAttribute('aria-checked',x.dataset.k===b.dataset.k));
+    $('fFormat').style.display=S.track==='ielts'?'block':'none';
   }
   $('topic').value=b.dataset.t;$('target').value=b.dataset.o;
 });
@@ -415,11 +708,10 @@ async function speak(text,done){
     if(mySid===sid&&S.live&&done)done();
   };
 
-  // Watchdog timer: initially 12s, dynamically reset to actual audio duration + 4s on play
   safetyTimer=setTimeout(()=>{
     console.warn("TTS watchdog triggered.");
     finishSpeak();
-  },12000);
+  },14000);
 
   const a=getAudio();
   let fallbackAttempted=false;
@@ -430,7 +722,7 @@ async function speak(text,done){
     const dur=a.duration;
     if(dur&&!isNaN(dur)&&isFinite(dur)){
       clearTimeout(safetyTimer);
-      safetyTimer=setTimeout(finishSpeak,(dur*1000)+4000);
+      safetyTimer=setTimeout(finishSpeak,(dur*1000)+3500);
     }
   };
 
@@ -502,7 +794,6 @@ function initRec(){
     if(S.speaking||!S.listening)return;
     micErrCount=0;
     
-    // Android-safe transcript reconstruction: rebuild completely from e.results
     let fullFin="";
     let interim="";
     for(let i=0;i<e.results.length;i++){
@@ -518,7 +809,9 @@ function initRec(){
     $('sayTxt').textContent=txt;$('sayTxt').classList.remove('ph');
     countFillers(txt);
 
-    // Adaptive pause detection: 3.5s for normal answers, 5.0s for short answers
+    // In Cue Card mode, user has a full 2-minute monologue; don't auto-submit prematurely on pauses
+    if(S.format==='cuecard')return;
+
     const wordCount=txt.split(/\s+/).filter(Boolean).length;
     const pauseLimit=wordCount<10?5000:3500;
 
@@ -560,30 +853,45 @@ function showBlocked(){
 $('sayTxt').addEventListener('focus',()=>{const t=$('sayTxt');if(S.blocked&&t.textContent.includes("Click here")){t.textContent=""}});
 
 function countFillers(t){
-  let n=0;FILLERS.forEach(f=>{const m=t.toLowerCase().match(new RegExp(`\b${f}\b`,'g'));if(m)n+=m.length});
+  let n=0;FILLERS.forEach(f=>{const m=t.toLowerCase().match(new RegExp(`\\b${f}\\b`,'g'));if(m)n+=m.length});
   S.tFill=n;const tot=S.fill+n;$('mFill').textContent=tot;$('mFillBox').className=tot>3?'al':'';
 }
 
-/* ---------- Session ---------- */
-function start(){
+/* ---------- Session Management ---------- */
+async function start(){
   unlockAudio();
+  await initUserAudioStream();
   sid++;
   micErrCount=0;
+  clearInterval(cuePrepTimer);
+
   const ex=EX[S.track];
   Object.assign(S,{
     blocked:micForbidden(),turn:1,hist:[],live:true,sec:0,words:0,userSpeakingSec:0,
-    fill:0,tFill:0,listening:false,speaking:false,fin:"",int:"",lastTurnText:""
+    fill:0,tFill:0,listening:false,speaking:false,fin:"",int:"",lastTurnText:"",
+    cuePrepSec:60,cueSpeakSec:0
   });
+
   $('rName').textContent=ex.name;$('mWords').textContent=0;$('mWpm').textContent="–";$('mFill').textContent=0;
   $('mPaceBox').className=$('mFillBox').className="";$('rTime').textContent="00:00";
   $('errBox').classList.remove('on');
+
+  if(S.format==='cuecard'){
+    startCueCardSession();
+    return;
+  }
+
+  // Discussion Q&A mode
+  $('qBox').style.display='flex';
+  $('cueCard').style.display='none';
+  $('cueSpeakMeter').style.display='none';
+
   buildProg();updateTurn();show('sRoom');
   
   clearInterval(clock);
   clock=setInterval(()=>{
     S.sec++;
     $('rTime').textContent=String(Math.floor(S.sec/60)).padStart(2,'0')+":"+String(S.sec%60).padStart(2,'0');
-    // Speaking pace calculation
     if(S.listening&&!S.speaking&&!S.muted){
       S.userSpeakingSec++;
       const currentWords=S.words+((S.fin+S.int).trim().split(/\s+/).filter(Boolean).length);
@@ -601,6 +909,138 @@ function start(){
   if(tg&&S.track==='college')intro=`Welcome. I am ${ex.name}. Why did you choose ${tg}, and what are you most excited to study here?`;
   if(tg&&S.track==='visa')intro=`Good morning. You are applying to study at ${tg}. Why did you choose this university, and how will your family fund your studies?`;
   ask(intro);
+}
+
+/* ---------- IELTS Part 2 Cue Card Workflow ---------- */
+function startCueCardSession(){
+  const card=CUE_CARDS[Math.floor(Math.random()*CUE_CARDS.length)];
+  S.activeCueCard=card;
+  S.total=1;
+  S.turn=1;
+
+  $('qBox').style.display='none';
+  $('cueCard').style.display='block';
+  $('cueSpeakMeter').style.display='none';
+  $('cuePrepBox').style.display='flex';
+  $('cueNotesArea').style.display='block';
+  $('cueNotes').value="";
+
+  $('rTurn').textContent="IELTS Speaking Part 2";
+  $('prog').innerHTML='<i class="c" style="width:70px"></i>';
+  $('cueTopic').textContent=card.topic;
+  $('cueBullets').innerHTML=card.bullets.map(b=>`<li>${esc(b)}</li>`).join('');
+  $('cueTimer').className="cue-timer-badge";
+  $('cueTimer').textContent="Preparation: 01:00";
+
+  show('sRoom');
+  initRec();
+
+  const prepIntro="I am going to give you a topic, and I would like you to talk about it for one to two minutes. Before you talk, you will have one minute to think about what you are going to say. You can make notes if you wish. Here is your task card.";
+  phase('connecting','Dr. Arthur Davies is introducing Part 2…');
+  
+  speak(prepIntro,()=>{
+    if(!S.live)return;
+    beginCuePreparation();
+  });
+}
+
+function beginCuePreparation(){
+  phase('idle','1-minute preparation: take notes below');
+  S.cuePrepSec=60;
+  clearInterval(cuePrepTimer);
+  cuePrepTimer=setInterval(()=>{
+    S.cuePrepSec--;
+    const s=String(S.cuePrepSec).padStart(2,'0');
+    $('cueTimer').textContent=`Preparation: 00:${s}`;
+    if(S.cuePrepSec<=0){
+      clearInterval(cuePrepTimer);
+      finishCuePrepAndSpeak();
+    }
+  },1000);
+}
+
+$('btnSkipPrep').onclick=()=>{
+  clearInterval(cuePrepTimer);
+  finishCuePrepAndSpeak();
+};
+
+function finishCuePrepAndSpeak(){
+  clearInterval(cuePrepTimer);
+  $('cuePrepBox').style.display='none';
+  $('cueTimer').className="cue-timer-badge ready";
+  $('cueTimer').textContent="Speaking Phase (1–2 min)";
+  $('cueSpeakMeter').style.display='block';
+
+  const speakPrompt="All right. Remember, you have one to two minutes for this, so do not worry if I stop you. Please start speaking now.";
+  phase('connecting','Examiner opening long turn…');
+
+  speak(speakPrompt,()=>{
+    if(!S.live)return;
+    openCueFloor();
+  });
+}
+
+function openCueFloor(){
+  S.listening=true;
+  S.fin=S.int="";
+  S.tFill=0;
+  phase('listening','Your turn: speak for 1 to 2 minutes');
+  $('sayTxt').textContent="Microphone is recording your long turn. Address each bullet point above…";
+  $('sayTxt').classList.remove('ph');
+  
+  startAudioRecording();
+  if(S.blocked)showBlocked();else resumeMic();
+
+  // Clock for the 2-minute sustained speaking turn
+  S.cueSpeakSec=0;
+  clearInterval(clock);
+  clock=setInterval(()=>{
+    S.cueSpeakSec++;
+    S.sec=S.cueSpeakSec;
+    const m=Math.floor(S.cueSpeakSec/60);
+    const s=String(S.cueSpeakSec%60).padStart(2,'0');
+    $('rTime').textContent=`0${m}:${s}`;
+    $('cueSpeakSec').textContent=`0${m}:${s}`;
+
+    // Fill bar: 120s total width (50% is 60s minimum)
+    const pct=Math.min(100,(S.cueSpeakSec/120)*100);
+    $('cueProgFill').style.width=pct+'%';
+    if(S.cueSpeakSec>=60)$('cueProgFill').classList.add('ok');
+
+    // Words & WPM
+    const currentWords=S.words+((S.fin+S.int).trim().split(/\s+/).filter(Boolean).length);
+    $('mWords').textContent=currentWords;
+    if(S.cueSpeakSec>4&&currentWords>0){
+      const wpm=Math.round((currentWords/S.cueSpeakSec)*60);
+      $('mWpm').textContent=wpm;
+      $('mPaceBox').className=(wpm<105||wpm>185)?'al':'';
+    }
+
+    // Auto-stop at 2 min 10 sec if candidate keeps talking
+    if(S.cueSpeakSec>=130){
+      clearInterval(clock);
+      const t=S.blocked?$('sayTxt').textContent.trim():(S.fin+S.int).trim();
+      endCueTurn(t||"Candidate concluded long turn.");
+    }
+  },1000);
+}
+
+async function endCueTurn(text){
+  clearInterval(clock);
+  S.listening=false;
+  pauseMic();
+  clearSilence();
+  phase('thinking','Examiner evaluating long turn…');
+
+  const audioUrl=await stopAudioRecording();
+  S.hist.push({speaker:'ai',text:S.activeCueCard.topic});
+  S.hist.push({speaker:'user',text,audioUrl});
+  S.words+=text.split(/\s+/).filter(Boolean).length;
+
+  const closingMsg="Thank you. That was two minutes. Let us review your formal evaluation for Part 2.";
+  speak(closingMsg,()=>{
+    finish(true);
+  });
 }
 
 function buildProg(){$('prog').innerHTML=Array.from({length:S.total},()=>'<i></i>').join('')}
@@ -625,6 +1065,7 @@ function openFloor(){
   S.listening=true;S.fin=S.int="";S.tFill=0;
   phase('listening','Your turn. Speak or tap Submit');
   $('sayTxt').textContent=S.muted?"Mic is muted. Unmute to answer.":"Speak your answer… (or tap Submit Answer when done)";$('sayTxt').classList.add('ph');
+  startAudioRecording();
   if(S.blocked)showBlocked();else resumeMic();
 }
 
@@ -643,16 +1084,19 @@ async function endTurn(text){
   S.lastTurnText=text;
   phase('thinking','Examiner is listening & thinking…');
   $('sayLbl').textContent="Recorded";
+
+  // Capture user audio blob URL
+  const audioUrl=await stopAudioRecording();
+
   const tg=$('target').value.trim(),tp=$('topic').value.trim();
 
-  // Commit candidate answer
-  S.hist.push({speaker:'user',text});
+  // Commit candidate answer with audio recording
+  S.hist.push({speaker:'user',text,audioUrl});
   S.words+=text.split(/\s+/).filter(Boolean).length;
   S.fill+=S.tFill;S.tFill=0;
   $('mWords').textContent=S.words;
   S.turn++;
 
-  // Optimization: If final turn was reached, skip wasteful LLM follow-up call
   if(S.turn>S.total){
     updateTurn();
     [...$('prog').children].forEach(e=>e.className='d');
@@ -665,7 +1109,6 @@ async function endTurn(text){
       message:text,persona:S.track,turn:S.turn,topic:tp,target:tg,difficulty:S.tone
     },16000);
     
-    // Guard against stale async resolution across session resets
     if(mySid!==sid||!S.live)return;
 
     $('errBox').classList.remove('on');
@@ -692,13 +1135,18 @@ $('btnRetryTurn').onclick=()=>{
 
 $('bGo').onclick=()=>{
   const t=S.blocked?($('sayTxt').classList.contains('ph')?'':$('sayTxt').textContent.trim()):(S.fin+S.int).trim();
-  if(S.listening&&t.length>1)endTurn(t);
+  if(S.format==='cuecard'){
+    if(S.listening&&t.length>1)endCueTurn(t);
+  }else{
+    if(S.listening&&t.length>1)endTurn(t);
+  }
 };
 
 $('bRedo').onclick=()=>{
   if(!S.listening)return;
   clearSilence();S.fin=S.int="";S.tFill=0;
   $('sayTxt').textContent="Cleared. Speak again…";$('sayTxt').classList.add('ph');
+  startAudioRecording();
   try{rec&&rec.abort()}catch(_){}
 };
 
@@ -706,7 +1154,7 @@ $('bMute').onclick=()=>{
   S.muted=!S.muted;$('bMute').setAttribute('aria-pressed',S.muted);$('bMute').textContent=S.muted?"Unmute mic":"Mute mic";
   if(S.muted)pauseMic();else resumeMic();
 };
-$('bEnd').onclick=finish;
+$('bEnd').onclick=()=>finish();
 
 /* ---------- Hint ---------- */
 let hintSeq=0;
@@ -716,8 +1164,9 @@ $('bHint').onclick=async()=>{
   const mySeq=++hintSeq;
   $('hintTxt').textContent="Working out a good approach…";
   try{
-    const d=await post('/api/hint',{last_question:S.q,mode:S.track,
-      lastQuestion:S.q,persona:S.track,topic:$('topic').value.trim(),target:$('target').value.trim(),history:S.hist});
+    const q=S.format==='cuecard'?S.activeCueCard?.topic:S.q;
+    const d=await post('/api/hint',{last_question:q,mode:S.track,
+      lastQuestion:q,persona:S.track,topic:$('topic').value.trim(),target:$('target').value.trim(),history:S.hist});
     if(mySeq===hintSeq)$('hintTxt').textContent=d.hint;
   }catch(_){
     if(mySeq===hintSeq)$('hintTxt').textContent="• State your conclusion directly first.\n• Support it with one concrete example from your experience.";
@@ -725,23 +1174,45 @@ $('bHint').onclick=async()=>{
 };
 $('hintX').onclick=()=>$('hint').classList.remove('on');
 
-/* ---------- Report with Honest Scores ---------- */
-async function finish(){
+/* ---------- Report with Honest Scores, Audio Playback & CEFR Profile ---------- */
+async function finish(isCueCard=false){
   sid++;
-  S.live=false;S.listening=false;stopAudio();S.speaking=false;pauseMic();clearSilence();clearInterval(clock);
+  clearInterval(clock);
+  clearInterval(cuePrepTimer);
+  S.live=false;S.listening=false;stopAudio();S.speaking=false;pauseMic();clearSilence();
   $('hint').classList.remove('on');phase('idle');
+
   const ex=EX[S.track];
-  $('repTitle').textContent=`${ex.name}, ${ex.track}`;
-  $('repScore').textContent="…";$('repVerdict').textContent="Evaluating transcript…";$('repVerdict').classList.add('pend');
+  $('repTitle').textContent=isCueCard?`${ex.name} — IELTS Part 2 (Long Turn)`:`${ex.name}, ${ex.track}`;
+  $('repScore').textContent="…";$('repVerdict').textContent="Evaluating transcript and sustained discourse…";$('repVerdict').classList.add('pend');
   ['F','L','R'].forEach(k=>{$('s'+k).textContent="–";$('b'+k).style.width=0});
   $('ups').innerHTML="";
-  $('tr').innerHTML=S.hist.map(t=>`<div class="${t.speaker}"><small>${t.speaker==='ai'?esc(ex.name):'You'}</small>${esc(t.text)}</div>`).join('')||'<div>No answers recorded.</div>';
+
+  // Transcript with inline candidate audio playback
+  $('tr').innerHTML=S.hist.map(t=>{
+    if(t.speaker==='user'){
+      const audioBtn=t.audioUrl?`<button class="btn-play-clip" onclick="playCandidateAudio('${t.audioUrl}', this)">▶ Listen to your answer</button>`:'';
+      return `<div class="user"><small style="display:flex;align-items:center;">You ${audioBtn}</small>${esc(t.text)}</div>`;
+    }else{
+      return `<div class="ai"><small>${esc(ex.name)}</small>${esc(t.text)}</div>`;
+    }
+  }).join('')||'<div>No answers recorded.</div>';
+
   show('sReport');
 
   try{
-    const d=await post('/api/analyze',{history:S.hist,mode:S.track,persona:S.track,topic:$('topic').value.trim(),target:$('target').value.trim()},25000);
+    const payload={
+      history:S.hist,
+      mode:S.track,
+      persona:S.track,
+      topic:$('topic').value.trim(),
+      target:$('target').value.trim(),
+      isCueCard:Boolean(isCueCard||S.format==='cuecard'),
+      cueCardTopic:S.activeCueCard?S.activeCueCard.topic:""
+    };
+
+    const d=await post('/api/analyze',payload,25000);
     
-    // HONEST DISPLAY: Label degraded estimates accurately
     $('repScore').textContent=d.overallScore||"Not Scored";
     $('repVerdict').textContent=d.verdict||"Performance evaluation completed.";
     $('repVerdict').classList.remove('pend');
@@ -759,14 +1230,44 @@ async function finish(){
       requestAnimationFrame(()=>requestAnimationFrame(()=>$('b'+k).style.width=pct+'%'));
     }
 
+    // CEFR Profile rendering
+    if(d.cefrLevel)$('cefrLvl').textContent=d.cefrLevel;
+    if(d.cefrFeedback)$('cefrTip').textContent=d.cefrFeedback;
+    if(d.cefrDistribution){
+      const cd=d.cefrDistribution;
+      $('cBarA').style.width=(cd.a1_a2||25)+'%';
+      $('cBarB1').style.width=(cd.b1||45)+'%';
+      $('cBarB2').style.width=(cd.b2||20)+'%';
+      $('cBarC').style.width=(cd.c1_c2||10)+'%';
+      $('cTxtA').textContent=(cd.a1_a2||25)+'%';
+      $('cTxtB1').textContent=(cd.b1||45)+'%';
+      $('cTxtB2').textContent=(cd.b2||20)+'%';
+      $('cTxtC').textContent=(cd.c1_c2||10)+'%';
+    }
+
+    // Upgrades with pronunciation audio drill
     const safeUpgrades=Array.isArray(d.upgrades)?d.upgrades.filter(Boolean):[];
-    $('ups').innerHTML=(safeUpgrades.length?safeUpgrades.map(u=>`<div class="up"><div class="o">${esc(u.original)}</div><div class="n">${esc(u.improved)}</div><div class="w">${esc(u.why)}</div></div>`).join(''):'<div class="up"><div class="w">No significant upgrades identified.</div></div>');
+    $('ups').innerHTML=(safeUpgrades.length?safeUpgrades.map(u=>`
+      <div class="up">
+        <div class="o">${esc(u.original)}</div>
+        <div class="n">
+          <span>${esc(u.improved)}</span>
+          <button class="btn-hear-up" onclick="playUpgradeAudio('${esc(u.improved)}')">🔊 Listen to examiner</button>
+        </div>
+        <div class="w">${esc(u.why)}</div>
+      </div>`).join(''):'<div class="up"><div class="w">No significant upgrades identified.</div></div>');
 
     if(!d.degraded){
       try{
         const r=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
-        r.push({date:new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}),examiner:ex.name,score:d.overallScore||"Completed",words:S.words});
-        localStorage.setItem('speaksense_sessions',JSON.stringify(r.slice(-25)));
+        r.push({
+          date:new Date().toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}),
+          examiner:ex.name,
+          format:S.format==='cuecard'?'IELTS Part 2':'Interview Q&A',
+          score:d.overallScore||"Completed",
+          words:S.words
+        });
+        localStorage.setItem('speaksense_sessions',JSON.stringify(r.slice(-30)));
       }catch(_){}
     }
   }catch(e){
@@ -779,26 +1280,33 @@ async function finish(){
 
 $('bCopy').onclick=()=>{
   const ex=EX[S.track];
-  const t=`SpeakSense assessment
-Examiner: ${ex.name} (${ex.track})
-Score: ${$('repScore').textContent}
-${$('repVerdict').textContent}
-Words: ${S.words} | Fillers: ${S.fill}`;
+  const t=`SpeakSense assessment\nExaminer: ${ex.name} (${ex.track})\nScore: ${$('repScore').textContent}\n${$('repVerdict').textContent}\nWords: ${S.words} | Fillers: ${S.fill}`;
   if(navigator.clipboard&&navigator.clipboard.writeText){
     navigator.clipboard.writeText(t).then(()=>{$('bCopy').textContent="Copied";setTimeout(()=>$('bCopy').textContent="Copy summary",1800)}).catch(()=>{});
   }
 };
-$('bAgain').onclick=()=>{show('sSetup');loadLast()};
+$('bAgain').onclick=()=>{show('sSetup');loadHistory()};
 
-function loadLast(){
+/* History & Score Trajectory */
+function loadHistory(){
   try{
     const r=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
-    if(!r.length)return;const l=r[r.length-1];
+    if(!r.length)return;
+    const l=r[r.length-1];
     $('last').classList.add('on');$('lastScore').textContent=l.score;$('lastEx').textContent=l.examiner;
-    $('lastWhen').textContent=`${l.date}, ${r.length} session${r.length>1?'s':''} so far`;
+    $('lastWhen').textContent=`${l.date}, ${r.length} session${r.length>1?'s':''} completed`;
+
+    $('trendCard').style.display='block';
+    $('trendTotal').textContent=`${r.length} practice session${r.length>1?'s':''}`;
+    $('trendRow').innerHTML=r.slice(-6).map(s=>`
+      <div class="trend-chip">
+        <b>${esc(s.score)}</b>
+        <small>${esc(s.format||'Q&A')}</small>
+      </div>
+    `).join('');
   }catch(_){}
 }
-loadLast();
+loadHistory();
 if(!SR){$('warn').classList.add('on');$('btnStart').disabled=true}
 </script>
 </body>
