@@ -1,6 +1,8 @@
 import asyncio
 import base64
 import hashlib
+import hmac
+from collections import defaultdict
 import json
 import os
 import re
@@ -24,6 +26,56 @@ CACHE_DIR = os.path.join(os.path.dirname(__file__), "audio_cache")
 RECORDINGS_DIR = os.path.join(os.path.dirname(__file__), "recordings")
 DB_PATH = os.path.join(os.path.dirname(__file__), "speaksense.db")
 
+SESSION_SECRET = os.environ.get("SESSION_SECRET", "").encode() or b"speaksense_sec_key_9d3a7e2b1c4f"
+RATE_LIMITS = defaultdict(list)
+
+def check_rate_limit(ip: str, endpoint: str, max_requests: int, window_sec: float = 60.0) -> bool:
+    now = time.time()
+    key = f"{ip}:{endpoint}"
+    timestamps = [t for t in RATE_LIMITS[key] if now - t < window_sec]
+    if len(timestamps) >= max_requests:
+        return False
+    timestamps.append(now)
+    RATE_LIMITS[key] = timestamps
+    return True
+
+def create_session_token(user_id: str) -> str:
+    now = int(time.time())
+    sig = hmac.new(SESSION_SECRET, f"{user_id}:{now}".encode(), hashlib.sha256).hexdigest()
+    return f"{user_id}.{now}.{sig}"
+
+def verify_session_token(token: str) -> str:
+    if not token or "." not in token:
+        return ""
+    parts = token.split(".", 2)
+    if len(parts) != 3:
+        return ""
+    user_id, ts_str, sig = parts
+    try:
+        ts = int(ts_str)
+    except ValueError:
+        return ""
+    if time.time() - ts > 30 * 86400:
+        return ""
+    expected = hmac.new(SESSION_SECRET, f"{user_id}:{ts}".encode(), hashlib.sha256).hexdigest()
+    if hmac.compare_digest(sig, expected):
+        return user_id
+    return ""
+
+def get_auth_user_id(request) -> str:
+    auth = request.headers.get("Authorization", "").strip()
+    if auth.startswith("Bearer "):
+        uid = verify_session_token(auth[7:].strip())
+        if uid:
+            return uid
+    custom = request.headers.get("x-speaksense-token", "").strip()
+    if custom:
+        uid = verify_session_token(custom)
+        if uid:
+            return uid
+    return ""
+
+
 try:
     os.makedirs(CACHE_DIR, exist_ok=True)
     os.makedirs(RECORDINGS_DIR, exist_ok=True)
@@ -34,6 +86,7 @@ def init_db():
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
+        c.execute("PRAGMA foreign_keys = ON;")
         c.execute("""
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
@@ -66,6 +119,7 @@ def init_db():
             FOREIGN KEY(user_id) REFERENCES users(id)
         );
         """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, created_at);")
         conn.commit()
         conn.close()
     except Exception as e:
@@ -213,6 +267,9 @@ async def synthesize_edge_tts(text: str, voice: str, cache_file: str):
         raise ValueError("Empty or truncated audio returned by speech synthesis")
 
 async def handle_tts(request):
+    ip = request.remote or "unknown"
+    if not check_rate_limit(ip, "tts", 40, 60):
+        return web.Response(status=429, text="Rate limit exceeded. Please wait a moment.")
     # Health/wake ping support
     if request.query.get("check"):
         return web.Response(text="ok", content_type="text/plain")
@@ -270,6 +327,9 @@ async def handle_tts(request):
     return web.Response(status=503, text="Speech synthesis temporarily unavailable")
 
 async def handle_comprehend(request):
+    ip = request.remote or "unknown"
+    if not check_rate_limit(ip, "comprehend", 25, 60):
+        return web.json_response({"reply": "Examiner is taking a brief pause. Please wait a few seconds and continue.", "engine": "rate-limit"})
     try:
         data = await request.json()
         if not isinstance(data, dict):
@@ -304,7 +364,8 @@ async def handle_comprehend(request):
             sys_inst = build_system_prompt(persona, topic=topic, target=target, difficulty=difficulty)
 
             contents = list(clean_history)
-            contents.append({"role": "user", "parts": [{"text": user_text}]})
+            if not (contents and contents[-1].get("role") == "user" and contents[-1].get("parts", [{}])[0].get("text") == user_text):
+                contents.append({"role": "user", "parts": [{"text": user_text}]})
 
             payload = {
                 "systemInstruction": {"parts": [{"text": sys_inst}]},
@@ -333,6 +394,9 @@ async def handle_comprehend(request):
     return web.json_response({"reply": local_reply, "engine": "local-semantic"})
 
 async def handle_hint(request):
+    ip = request.remote or "unknown"
+    if not check_rate_limit(ip, "hint", 15, 60):
+        return web.json_response({"hint": "• Focus on your main point first.\n• Support with one concrete example.", "engine": "rate-limit"})
     try:
         data = await request.json()
         if not isinstance(data, dict):
@@ -393,6 +457,9 @@ def clamp_band(model_band: float, words_per_turn: float, is_cue_card: bool = Fal
     return min(model_band, cap)
 
 async def handle_analyze(request):
+    ip = request.remote or "unknown"
+    if not check_rate_limit(ip, "analyze", 10, 60):
+        return web.json_response({"error": "Assessment rate limit exceeded. Please wait a moment."}, status=429)
     try:
         data = await request.json()
         if not isinstance(data, dict):
@@ -621,6 +688,19 @@ Return JSON:
     return web.json_response(fallback_eval)
 
 async def handle_upload_recording(request):
+    ip = request.remote or "unknown"
+    if not check_rate_limit(ip, "upload", 20, 60):
+        return web.json_response({"error": "Rate limit exceeded."}, status=429)
+
+    user_id = get_auth_user_id(request)
+    if not user_id:
+        return web.json_response({"error": "Unauthorized. Sign in or continue as guest to upload."}, status=401)
+
+    content_type = request.headers.get("Content-Type", "").lower()
+    valid_mimes = ["audio/webm", "audio/mp4", "audio/wav", "audio/ogg", "audio/mpeg", "video/webm", "video/mp4"]
+    if not any(m in content_type for m in valid_mimes):
+        return web.json_response({"error": "Invalid audio Content-Type"}, status=415)
+
     try:
         body = await request.read()
         if not body:
@@ -628,7 +708,8 @@ async def handle_upload_recording(request):
         if len(body) > 20 * 1024 * 1024:
             return web.json_response({"error": "Audio recording exceeds 20MB limit"}, status=413)
 
-        rec_id = f"rec_{uuid.uuid4().hex[:14]}.webm"
+        ext = "mp4" if "mp4" in content_type else ("wav" if "wav" in content_type else "webm")
+        rec_id = f"rec_{uuid.uuid4().hex[:16]}.{ext}"
         rec_path = os.path.join(RECORDINGS_DIR, rec_id)
 
         with tempfile.NamedTemporaryFile(dir=RECORDINGS_DIR, delete=False, suffix=".tmp") as tf:
@@ -643,7 +724,7 @@ async def handle_upload_recording(request):
         })
     except Exception as e:
         print(f"[Upload Error] {e}")
-        return web.json_response({"error": f"Upload failed: {str(e)}"}, status=500)
+        return web.json_response({"error": "Upload failed"}, status=500)
 
 async def handle_get_recording(request):
     filename = os.path.basename(request.match_info.get("filename", ""))
@@ -655,47 +736,61 @@ async def handle_get_recording(request):
     return web.FileResponse(filepath)
 
 async def handle_auth_google(request):
+    ip = request.remote or "unknown"
+    if not check_rate_limit(ip, "auth", 20, 60):
+        return web.json_response({"error": "Rate limit exceeded. Please wait a moment."}, status=429)
+
     try:
         data = await request.json()
     except Exception:
         return web.json_response({"error": "Invalid JSON"}, status=400)
 
     credential = str(data.get("credential", "")).strip()
+    is_guest = bool(data.get("is_guest", False))
     user_id = ""
     email = ""
     name = ""
     avatar = ""
 
-    # Decode Google Identity Services JWT payload safely (standard library base64)
-    if credential and "." in credential:
+    session: ClientSession = request.app["http"]
+
+    if credential:
         try:
-            parts = credential.split(".")
-            if len(parts) >= 2:
-                payload_b64 = parts[1]
-                payload_b64 += "=" * (-len(payload_b64) % 4)
-                payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8"))
-                user_id = str(payload.get("sub", "")).strip()
-                email = str(payload.get("email", "")).strip()
-                name = str(payload.get("name", "")).strip() or (email.split("@")[0] if email else "Candidate")
-                avatar = str(payload.get("picture", "")).strip()
+            tokeninfo_url = f"https://oauth2.googleapis.com/tokeninfo?id_token={credential}"
+            async with session.get(tokeninfo_url, timeout=ClientTimeout(total=5.0)) as resp:
+                if resp.status == 200:
+                    info = await resp.json()
+                    user_id = str(info.get("sub", "")).strip()
+                    email = str(info.get("email", "")).strip()
+                    name = str(info.get("name", "")).strip() or (email.split("@")[0] if email else "Candidate")
+                    avatar = str(info.get("picture", "")).strip()
+                else:
+                    return web.json_response({"error": "Invalid or expired Google credential"}, status=401)
         except Exception as e:
-            print(f"[Auth Notice] JWT decode notice: {e}")
+            print(f"[Auth Error] Google token verification failed: {e}")
+            return web.json_response({"error": "Google authentication unavailable"}, status=502)
+    elif is_guest:
+        user_id = f"guest_{uuid.uuid4().hex[:12]}"
+        name = "Guest Candidate"
+        email = f"{user_id}@speaksense.local"
+        avatar = f"https://api.dicebear.com/7.x/initials/svg?seed=Guest&backgroundColor=848b99&textColor=ffffff"
+    else:
+        val = str(data.get("email") or data.get("name") or "").strip()
+        if not val:
+            return web.json_response({"error": "Missing credentials or profile name"}, status=400)
+        is_email = "@" in val
+        email = val if is_email else f"{val.lower().replace(' ', '.')}@speaksense.cloud"
+        name = val.split("@")[0] if is_email else val
+        user_id = f"usr_{hashlib.sha256(email.encode()).hexdigest()[:14]}"
+        avatar = str(data.get("avatar") or f"https://api.dicebear.com/7.x/initials/svg?seed={name}&backgroundColor=2b3fd6&textColor=ffffff")
 
-    # Fallback for manual or simulated profile
     if not user_id:
-        email = str(data.get("email", "")).strip()
-        name = str(data.get("name", "")).strip() or (email.split("@")[0] if email else "Candidate")
-        avatar = str(data.get("avatar", "")).strip()
-        user_id = str(data.get("id", "")).strip()
-        if not user_id and (email or name):
-            user_id = f"usr_{hashlib.md5((email or name or str(time.time())).encode()).hexdigest()[:12]}"
-
-    if not user_id:
-        return web.json_response({"error": "Could not identify user from credentials"}, status=400)
+        return web.json_response({"error": "Authentication failed"}, status=400)
 
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
+        c.execute("PRAGMA foreign_keys = ON;")
         c.execute("""
             INSERT INTO users (id, email, name, avatar, last_login)
             VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -714,20 +809,22 @@ async def handle_auth_google(request):
         if not avatar and name:
             avatar = f"https://api.dicebear.com/7.x/initials/svg?seed={name}&backgroundColor=2b3fd6&textColor=ffffff"
 
+        token = create_session_token(user_id)
         user = {
             "id": row[0],
             "email": row[1] or "",
             "name": row[2] or "Candidate",
             "avatar": row[3] or avatar,
-            "created_at": str(row[4])
+            "created_at": str(row[4]),
+            "token": token
         }
-        return web.json_response({"ok": True, "user": user})
+        return web.json_response({"ok": True, "user": user, "token": token})
     except Exception as e:
         print(f"[Auth DB Error] {e}")
         return web.json_response({"error": "Database error saving user"}, status=500)
 
 async def handle_auth_me(request):
-    user_id = request.query.get("user_id", "").strip()
+    user_id = get_auth_user_id(request)
     if not user_id:
         return web.json_response({"authenticated": False, "user": None})
 
@@ -753,24 +850,31 @@ async def handle_auth_me(request):
         return web.json_response({"authenticated": False, "error": str(e)})
 
 async def handle_save_session(request):
+    ip = request.remote or "unknown"
+    if not check_rate_limit(ip, "save_session", 25, 60):
+        return web.json_response({"error": "Rate limit exceeded."}, status=429)
+
+    user_id = get_auth_user_id(request)
+    if not user_id:
+        return web.json_response({"error": "Unauthorized. Sign-in or guest session token required."}, status=401)
+
     try:
         data = await request.json()
     except Exception:
         return web.json_response({"error": "Invalid JSON"}, status=400)
 
-    user_id = str(data.get("user_id", "guest")).strip() or "guest"
-    session_id = str(data.get("id") or f"sess_{uuid.uuid4().hex[:12]}")
-    examiner = str(data.get("examiner", "Examiner"))
-    track = str(data.get("track", "ielts"))
-    fmt = str(data.get("format", "Interview Q&A"))
-    score = str(data.get("score", "Completed"))
-    fluency = str(data.get("fluency_score", "—"))
-    lexical = str(data.get("lexical_score", "—"))
-    logic = str(data.get("logic_score", "—"))
-    cefr_level = str(data.get("cefr_level", "B2"))
-    verdict = str(data.get("verdict", ""))
-    words = int(data.get("words", 0))
-    duration = int(data.get("duration", 0))
+    session_id = f"sess_{uuid.uuid4().hex[:14]}"
+    examiner = str(data.get("examiner", "Examiner"))[:60]
+    track = str(data.get("track", "ielts"))[:30]
+    fmt = str(data.get("format", "Interview Q&A"))[:40]
+    score = str(data.get("score", "Completed"))[:30]
+    fluency = str(data.get("fluency_score", "—"))[:20]
+    lexical = str(data.get("lexical_score", "—"))[:20]
+    logic = str(data.get("logic_score", "—"))[:20]
+    cefr_level = str(data.get("cefr_level", "B2"))[:40]
+    verdict = str(data.get("verdict", ""))[:1200]
+    words = max(0, min(10000, int(data.get("words", 0))))
+    duration = max(0, min(7200, int(data.get("duration", 0))))
 
     transcript_json = json.dumps(data.get("transcript", []))
     upgrades_json = json.dumps(data.get("upgrades", []))
@@ -779,14 +883,14 @@ async def handle_save_session(request):
     try:
         conn = sqlite3.connect(DB_PATH)
         c = conn.cursor()
-        # Guarantee foreign key user exists
+        c.execute("PRAGMA foreign_keys = ON;")
         c.execute("""
             INSERT OR IGNORE INTO users (id, email, name, avatar)
             VALUES (?, ?, ?, '')
-        """, (user_id, f"{user_id}@speaksense.local" if user_id == "guest" else "", "Guest Candidate" if user_id == "guest" else "User"))
+        """, (user_id, f"{user_id}@speaksense.local", "Candidate"))
 
         c.execute("""
-            INSERT OR REPLACE INTO sessions (
+            INSERT INTO sessions (
                 id, user_id, examiner, track, format, score,
                 fluency_score, lexical_score, logic_score, cefr_level,
                 verdict, words, duration, transcript_json, upgrades_json,
@@ -802,10 +906,10 @@ async def handle_save_session(request):
         return web.json_response({"ok": True, "session_id": session_id})
     except Exception as e:
         print(f"[Save Session Error] {e}")
-        return web.json_response({"error": f"Failed to save session: {str(e)}"}, status=500)
+        return web.json_response({"error": "Failed to save session"}, status=500)
 
 async def handle_get_sessions(request):
-    user_id = request.query.get("user_id", "").strip()
+    user_id = get_auth_user_id(request)
     if not user_id:
         return web.json_response({"ok": True, "sessions": []})
 
@@ -817,7 +921,7 @@ async def handle_get_sessions(request):
             SELECT id, examiner, track, format, score, fluency_score, lexical_score, logic_score, cefr_level, verdict, words, duration, created_at
             FROM sessions
             WHERE user_id = ?
-            ORDER BY datetime(created_at) DESC
+            ORDER BY created_at DESC
             LIMIT ?
         """, (user_id, limit))
         rows = c.fetchall()
@@ -846,6 +950,10 @@ async def handle_get_sessions(request):
         return web.json_response({"ok": False, "error": str(e), "sessions": []})
 
 async def handle_get_session_detail(request):
+    user_id = get_auth_user_id(request)
+    if not user_id:
+        return web.json_response({"error": "Unauthorized. Sign in to view session details."}, status=401)
+
     sess_id = request.match_info.get("id", "").strip()
     if not sess_id:
         return web.json_response({"error": "Missing session ID"}, status=400)
@@ -856,13 +964,13 @@ async def handle_get_session_detail(request):
         c.execute("""
             SELECT id, user_id, examiner, track, format, score, fluency_score, lexical_score, logic_score, cefr_level, verdict, words, duration, transcript_json, upgrades_json, cefr_json, created_at
             FROM sessions
-            WHERE id = ?
-        """, (sess_id,))
+            WHERE id = ? AND user_id = ?
+        """, (sess_id, user_id))
         row = c.fetchone()
         conn.close()
 
         if not row:
-            return web.json_response({"error": "Session not found"}, status=404)
+            return web.json_response({"error": "Session not found or access denied"}, status=404)
 
         try:
             transcript = json.loads(row[13]) if row[13] else []
@@ -934,7 +1042,7 @@ async def handle_config(request):
     })
 
 def create_app():
-    app = web.Application()
+    app = web.Application(client_max_size=25 * 1024 * 1024)
     app.cleanup_ctx.append(app_cleanup_ctx)
 
     # Load HTML and API key once at startup

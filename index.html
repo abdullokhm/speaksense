@@ -646,11 +646,14 @@ async function handleCredentialSuccess(user){
   currentUser=user;
   try{
     localStorage.setItem('speaksense_user',JSON.stringify(currentUser));
+    if(user.token){
+      localStorage.setItem('speaksense_token',user.token);
+    }
   }catch(_){}
   updateAuthUI();
   closeQuickAuthModal();
   
-  if(currentSessionObj){
+  if(currentSessionObj&&!currentSessionObj._isHistorical){
     currentSessionObj.user_id=currentUser.id;
     try{
       await post('/api/sessions/save',currentSessionObj);
@@ -754,9 +757,12 @@ function stopAudioRecording(){
           const blob=new Blob(recordedChunks,{type:recordedChunks[0]?.type||'audio/webm'});
           let permUrl=null;
           try{
+            const headers={'Content-Type':blob.type||'audio/webm'};
+            const token=localStorage.getItem('speaksense_token');
+            if(token)headers['Authorization']=`Bearer ${token}`;
             const res=await fetch('/api/recordings/upload',{
               method:'POST',
-              headers:{'Content-Type':blob.type},
+              headers,
               body:blob
             });
             if(res.ok){
@@ -878,6 +884,13 @@ $('scen').addEventListener('click',e=>{
     S.track=b.dataset.k;
     document.querySelectorAll('.group[role=radiogroup] [role=radio]').forEach(x=>x.setAttribute('aria-checked',x.dataset.k===b.dataset.k));
     $('fFormat').style.display=S.track==='ielts'?'block':'none';
+    if(S.track!=='ielts'&&S.format==='cuecard'){
+      S.format='discussion';
+      $('segFormat').querySelectorAll('button').forEach(x=>x.setAttribute('aria-checked',x.dataset.v==='discussion'));
+      $('fLength').style.display='block';
+      const lenBtn=$('segN').querySelector('[aria-checked=true]');
+      S.total=lenBtn?parseInt(lenBtn.dataset.v):3;
+    }
   }
   $('topic').value=b.dataset.t;$('target').value=b.dataset.o;
 });
@@ -1098,6 +1111,8 @@ async function start(){
   }
 
   // Discussion Q&A mode
+  const lenBtn=$('segN').querySelector('[aria-checked=true]');
+  S.total=lenBtn?parseInt(lenBtn.dataset.v):3;
   $('qBox').style.display='flex';
   $('cueCard').style.display='none';
   $('cueSpeakMeter').style.display='none';
@@ -1286,9 +1301,12 @@ function openFloor(){
 }
 
 async function post(url,body,ms){
-  const c=new AbortController(),t=setTimeout(()=>c.abort(),ms||12000);
+  const c=new AbortController(),t=setTimeout(()=>c.abort(),ms||15000);
   try{
-    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:c.signal});
+    const headers={'Content-Type':'application/json'};
+    const token=localStorage.getItem('speaksense_token');
+    if(token)headers['Authorization']=`Bearer ${token}`;
+    const r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:c.signal});
     if(!r.ok)throw new Error(`HTTP ${r.status}`);
     return await r.json();
   }finally{clearTimeout(t)}
@@ -1342,6 +1360,12 @@ async function endTurn(text){
 /* Retry button on error */
 $('btnRetryTurn').onclick=()=>{
   $('errBox').classList.remove('on');
+  if(S.hist.length>0&&S.hist[S.hist.length-1].speaker==='user'){
+    const last=S.hist.pop();
+    S.words=Math.max(0,S.words-(last.text||'').split(/\s+/).filter(Boolean).length);
+    $('mWords').textContent=S.words;
+    S.turn=Math.max(1,S.turn-1);
+  }
   if(S.lastTurnText){
     endTurn(S.lastTurnText);
   }else{
@@ -1362,6 +1386,10 @@ $('bRedo').onclick=()=>{
   if(!S.listening)return;
   clearSilence();S.fin=S.int="";S.tFill=0;
   $('sayTxt').textContent="Cleared. Speak again…";$('sayTxt').classList.add('ph');
+  if(mediaRecorder&&mediaRecorder.state!=='inactive'){
+    try{mediaRecorder.stop();}catch(_){}
+  }
+  recordedChunks=[];
   startAudioRecording();
   try{rec&&rec.abort()}catch(_){}
 };
@@ -1396,6 +1424,13 @@ async function finish(isCueCard=false){
   clearInterval(clock);
   clearInterval(cuePrepTimer);
   S.live=false;S.listening=false;stopAudio();S.speaking=false;pauseMic();clearSilence();
+  if(audioStream){
+    try{audioStream.getTracks().forEach(t=>t.stop());}catch(_){}
+    audioStream=null;
+  }
+  if(mediaRecorder&&mediaRecorder.state!=='inactive'){
+    try{mediaRecorder.stop();}catch(_){}
+  }
   $('hint').classList.remove('on');phase('idle');
 
   const ex=EX[S.track];
@@ -1407,7 +1442,7 @@ async function finish(isCueCard=false){
   // Transcript with inline candidate audio playback
   $('tr').innerHTML=S.hist.map(t=>{
     if(t.speaker==='user'){
-      const audioBtn=t.audioUrl?`<button class="btn-play-clip" onclick="playCandidateAudio('${t.audioUrl}', this)">▶ Listen to your answer</button>`:'';
+      const audioBtn=t.audioUrl?`<button type="button" class="btn-play-clip" data-url="${esc(t.audioUrl)}">▶ Listen to your answer</button>`:'';
       return `<div class="user"><small style="display:flex;align-items:center;">You ${audioBtn}</small>${esc(t.text)}</div>`;
     }else{
       return `<div class="ai"><small>${esc(ex.name)}</small>${esc(t.text)}</div>`;
@@ -1451,14 +1486,14 @@ async function finish(isCueCard=false){
     if(d.cefrFeedback)$('cefrTip').textContent=d.cefrFeedback;
     if(d.cefrDistribution){
       const cd=d.cefrDistribution;
-      $('cBarA').style.width=(cd.a1_a2||25)+'%';
-      $('cBarB1').style.width=(cd.b1||45)+'%';
-      $('cBarB2').style.width=(cd.b2||20)+'%';
-      $('cBarC').style.width=(cd.c1_c2||10)+'%';
-      $('cTxtA').textContent=(cd.a1_a2||25)+'%';
-      $('cTxtB1').textContent=(cd.b1||45)+'%';
-      $('cTxtB2').textContent=(cd.b2||20)+'%';
-      $('cTxtC').textContent=(cd.c1_c2||10)+'%';
+      $('cBarA').style.width=(cd.a1_a2??25)+'%';
+      $('cBarB1').style.width=(cd.b1??45)+'%';
+      $('cBarB2').style.width=(cd.b2??20)+'%';
+      $('cBarC').style.width=(cd.c1_c2??10)+'%';
+      $('cTxtA').textContent=(cd.a1_a2??25)+'%';
+      $('cTxtB1').textContent=(cd.b1??45)+'%';
+      $('cTxtB2').textContent=(cd.b2??20)+'%';
+      $('cTxtC').textContent=(cd.c1_c2??10)+'%';
     }
 
     // Upgrades with pronunciation audio drill
@@ -1468,7 +1503,7 @@ async function finish(isCueCard=false){
         <div class="o">${esc(u.original)}</div>
         <div class="n">
           <span>${esc(u.improved)}</span>
-          <button class="btn-hear-up" onclick="playUpgradeAudio('${esc(u.improved)}')">🔊 Listen to examiner</button>
+          <button type="button" class="btn-hear-up" data-text="${esc(u.improved)}">🔊 Listen to examiner</button>
         </div>
         <div class="w">${esc(u.why)}</div>
       </div>`).join(''):'<div class="up"><div class="w">No significant upgrades identified.</div></div>');
@@ -1550,6 +1585,7 @@ window.viewHistoricalSession=async function(id){
     const data=await res.json();
     if(!data.ok||!data.session)return;
     const s=data.session;
+    s._isHistorical=true;
     currentSessionObj=s;
     
     $('repTitle').textContent=`${s.examiner} — ${s.format}`;
@@ -1569,14 +1605,14 @@ window.viewHistoricalSession=async function(id){
     if(s.cefr&&s.cefr.feedback)$('cefrTip').textContent=s.cefr.feedback;
     if(s.cefr&&s.cefr.distribution){
       const cd=s.cefr.distribution;
-      $('cBarA').style.width=(cd.a1_a2||25)+'%';
-      $('cBarB1').style.width=(cd.b1||45)+'%';
-      $('cBarB2').style.width=(cd.b2||20)+'%';
-      $('cBarC').style.width=(cd.c1_c2||10)+'%';
-      $('cTxtA').textContent=(cd.a1_a2||25)+'%';
-      $('cTxtB1').textContent=(cd.b1||45)+'%';
-      $('cTxtB2').textContent=(cd.b2||20)+'%';
-      $('cTxtC').textContent=(cd.c1_c2||10)+'%';
+      $('cBarA').style.width=(cd.a1_a2??25)+'%';
+      $('cBarB1').style.width=(cd.b1??45)+'%';
+      $('cBarB2').style.width=(cd.b2??20)+'%';
+      $('cBarC').style.width=(cd.c1_c2??10)+'%';
+      $('cTxtA').textContent=(cd.a1_a2??25)+'%';
+      $('cTxtB1').textContent=(cd.b1??45)+'%';
+      $('cTxtB2').textContent=(cd.b2??20)+'%';
+      $('cTxtC').textContent=(cd.c1_c2??10)+'%';
     }
     
     const safeUpgrades=Array.isArray(s.upgrades)?s.upgrades.filter(Boolean):[];
@@ -1585,7 +1621,7 @@ window.viewHistoricalSession=async function(id){
         <div class="o">${esc(u.original)}</div>
         <div class="n">
           <span>${esc(u.improved)}</span>
-          <button class="btn-hear-up" onclick="playUpgradeAudio('${esc(u.improved)}')">🔊 Listen to examiner</button>
+          <button type="button" class="btn-hear-up" data-text="${esc(u.improved)}">🔊 Listen to examiner</button>
         </div>
         <div class="w">${esc(u.why)}</div>
       </div>`).join(''):'<div class="up"><div class="w">No significant upgrades recorded.</div></div>';
@@ -1593,7 +1629,7 @@ window.viewHistoricalSession=async function(id){
     const safeTr=Array.isArray(s.transcript)?s.transcript:[];
     $('tr').innerHTML=safeTr.map(t=>{
       if(t.speaker==='user'){
-        const audioBtn=t.audioUrl?`<button class="btn-play-clip" onclick="playCandidateAudio('${t.audioUrl}', this)">▶ Listen to your answer</button>`:'';
+        const audioBtn=t.audioUrl?`<button type="button" class="btn-play-clip" data-url="${esc(t.audioUrl)}">▶ Listen to your answer</button>`:'';
         return `<div class="user"><small style="display:flex;align-items:center;">You ${audioBtn}</small>${esc(t.text)}</div>`;
       }else{
         return `<div class="ai"><small>${esc(s.examiner)}</small>${esc(t.text)}</div>`;
@@ -1619,9 +1655,12 @@ $('bAgain').onclick=()=>{show('sSetup');loadHistory()};
 /* History & Score Trajectory */
 async function loadHistory(){
   let sessions=[];
-  if(currentUser&&currentUser.id){
+  const token=localStorage.getItem('speaksense_token');
+  if(token){
     try{
-      const res=await fetch(`/api/sessions?user_id=${encodeURIComponent(currentUser.id)}&limit=30`);
+      const res=await fetch('/api/sessions?limit=30',{
+        headers:{'Authorization':`Bearer ${token}`}
+      });
       if(res.ok){
         const j=await res.json();
         if(j.sessions&&j.sessions.length>0)sessions=j.sessions;
@@ -1630,7 +1669,8 @@ async function loadHistory(){
   }
   if(!sessions.length){
     try{
-      sessions=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
+      const local=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
+      sessions=local.slice().reverse();
     }catch(_){}
   }
   if(!sessions.length){
@@ -1648,7 +1688,7 @@ async function loadHistory(){
   $('trendCard').style.display='block';
   $('trendTotal').textContent=`${sessions.length} practice session${sessions.length>1?'s':''}`;
   $('trendRow').innerHTML=sessions.slice(0,8).map(s=>`
-    <div class="trend-chip" ${s.id?`onclick="viewHistoricalSession('${s.id}')" title="Click to view full transcript & audio recordings" style="cursor:pointer;"`:''}>
+    <div class="trend-chip" ${s.id?`data-id="${esc(s.id)}" style="cursor:pointer;" title="Click to view full transcript & audio recordings"`:''}>
       <b>${esc(s.score)}</b>
       <small>${esc(s.format||'Q&A')}</small>
     </div>
@@ -1670,11 +1710,50 @@ $('btnSkipAuth').onclick=()=>{
 $('btnLogout').onclick=()=>{
   currentUser=null;
   localStorage.removeItem('speaksense_user');
+  localStorage.removeItem('speaksense_token');
   try{localStorage.removeItem('speaksense_guest_dismissed');}catch(_){}
   updateAuthUI();
   updateReportSyncUI();
-  loadHistory();
+  ensureSessionToken().then(()=>loadHistory());
 };
+
+// Global click delegation (safe apostrophe & quote handling)
+document.addEventListener('click',e=>{
+  const clipBtn=e.target.closest('.btn-play-clip');
+  if(clipBtn){
+    e.preventDefault();
+    const url=clipBtn.dataset.url;
+    if(url)playCandidateAudio(url,clipBtn);
+    return;
+  }
+  const upBtn=e.target.closest('.btn-hear-up');
+  if(upBtn){
+    e.preventDefault();
+    const txt=upBtn.dataset.text;
+    if(txt)playUpgradeAudio(txt);
+    return;
+  }
+  const chip=e.target.closest('.trend-chip[data-id]');
+  if(chip){
+    e.preventDefault();
+    const id=chip.dataset.id;
+    if(id)viewHistoricalSession(id);
+    return;
+  }
+});
+
+async function ensureSessionToken(){
+  let token=localStorage.getItem('speaksense_token');
+  if(!token){
+    try{
+      const res=await post('/api/auth/google',{is_guest:true});
+      if(res&&res.token){
+        localStorage.setItem('speaksense_token',res.token);
+        if(!currentUser)currentUser=res.user;
+      }
+    }catch(_){}
+  }
+}
 
 async function submitQuickProfile(){
   const val=$('inputCandName').value.trim();
@@ -1742,8 +1821,10 @@ $('inputCandName').addEventListener('keydown',(e)=>{
 $('btnQuickProfileSubmit').onclick=()=>submitQuickProfile();
 
 window.addEventListener('load',()=>{
-  initGoogleAuth();
-  loadHistory();
+  ensureSessionToken().then(()=>{
+    initGoogleAuth();
+    loadHistory();
+  });
   // Auto-show sign-in modal on first visit if not signed in
   if(!currentUser || !currentUser.id){
     const dismissed=localStorage.getItem('speaksense_guest_dismissed');
