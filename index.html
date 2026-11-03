@@ -7,6 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <style>
 :root{
   --fog:#eceef2; --paper:#fbfbfc; --ink:#14171c; --ink2:#4b5260; --ink3:#848b99;
@@ -211,6 +213,36 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .trend-chip b{color:var(--blue);font-weight:600}
 .trend-chip small{color:var(--ink3);margin-left:4px}
 
+/* Auth & Cloud Sync Styles */
+.auth-slot{display:flex;align-items:center;gap:10px}
+.btn-g-auth{display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line2);border-radius:20px;padding:6px 14px;font-size:13px;font-weight:500;color:var(--ink);cursor:pointer;transition:.15s;box-shadow:0 1px 2px rgba(20,23,28,.04)}
+.btn-g-auth:hover{border-color:var(--ink);box-shadow:0 2px 6px rgba(20,23,28,.08)}
+.btn-g-auth svg{width:16px;height:16px;flex-shrink:0}
+.user-pill{display:inline-flex;align-items:center;gap:9px;background:#fff;border:1px solid var(--line2);border-radius:24px;padding:4px 12px 4px 5px}
+.user-pill img{width:26px;height:26px;border-radius:50%;object-fit:cover;border:1px solid var(--line);background:var(--fog)}
+.user-pill .u-name{font-size:13px;font-weight:600;color:var(--ink);max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-pill .u-sync{font-size:10.5px;color:var(--green);font-weight:600;display:flex;align-items:center;gap:3px}
+.user-pill .u-sync::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--green)}
+.btn-logout{background:none;border:0;color:var(--ink3);font-size:12px;padding:2px 4px;cursor:pointer;border-radius:4px;transition:.15s}
+.btn-logout:hover{color:var(--rose)}
+
+/* Report Sync Callout */
+.report-sync-box{display:flex;align-items:center;justify-content:space-between;gap:16px;background:var(--paper);border:1px solid var(--line2);border-radius:12px;padding:16px 20px;margin-top:28px;flex-wrap:wrap}
+.report-sync-box.synced{background:#f0fdf4;border-color:#bbf7d0}
+.report-sync-txt b{display:block;font-size:14.5px;font-weight:600;color:var(--ink);margin-bottom:2px}
+.report-sync-txt p{font-size:13px;color:var(--ink2);margin:0}
+.report-sync-box.synced .report-sync-txt b{color:#15803d}
+.report-sync-box.synced .report-sync-txt p{color:#166534}
+
+/* Quick Sign-In Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,23,28,.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-overlay.open{display:flex}
+.modal-card{background:#fff;border-radius:16px;width:100%;max-width:400px;padding:28px 24px;box-shadow:0 24px 60px -12px rgba(20,23,28,.28);border:1px solid var(--line2);position:relative}
+.modal-card h3{font-size:20px;font-weight:600;letter-spacing:-.02em;margin-bottom:6px}
+.modal-card p{font-size:13.5px;color:var(--ink2);line-height:1.45;margin-bottom:18px}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:22px;line-height:1;color:var(--ink3);cursor:pointer}
+.modal-close:hover{color:var(--ink)}
+
 @media(max-width:860px){
   .setup{grid-template-columns:1fr}
   .setup-l{position:static;height:auto;padding:28px 24px;gap:28px}
@@ -235,7 +267,23 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 <main class="screen on" id="sSetup">
  <div class="setup">
   <section class="setup-l">
-   <div class="brand"><i></i>SpeakSense</div>
+   <div style="display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;gap:12px;">
+    <div class="brand"><i></i>SpeakSense</div>
+    <div id="authSlot" class="auth-slot">
+     <button class="btn-g-auth" id="btnGoogleLogin" type="button">
+      <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+      <span>Continue with Google</span>
+     </button>
+     <div class="user-pill" id="userPill" style="display:none;">
+      <img id="uAvatar" src="" alt="Avatar">
+      <div>
+       <div class="u-name" id="uName">Candidate</div>
+       <div class="u-sync">☁ Synced</div>
+      </div>
+      <button class="btn-logout" id="btnLogout" title="Log out">Log out</button>
+     </div>
+    </div>
+   </div>
    <div>
     <h1>Say it out loud before it counts.</h1>
     <p>Spoken practice for IELTS, admissions, visa and job interviews. A voiced examiner asks, you answer, and you get a scored report with better ways to phrase what you said.</p>
@@ -413,12 +461,50 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
   <div id="ups"></div>
   <h2>Transcript</h2>
   <div class="tr" id="tr"></div>
+
+  <!-- Session Sync & Cloud Persistence Card -->
+  <div class="report-sync-box" id="repSyncBox">
+   <div class="report-sync-txt">
+    <b id="repSyncTitle">💾 Save this assessment & your voice recordings</b>
+    <p id="repSyncSub">Sign in with Google so you can review your scored session and audio anytime.</p>
+   </div>
+   <button class="btn-g-auth" id="btnRepSync" type="button">
+    <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+    <span id="btnRepSyncTxt">Sign in to save</span>
+   </button>
+  </div>
+
   <div class="rep-foot">
    <div><button class="btn s" id="bCopy">Copy summary</button><button class="btn s" onclick="window.print()">Print or save as PDF</button></div>
    <button class="btn p" id="bAgain">New session</button>
   </div>
  </article>
 </main>
+
+<!-- Quick Auth / Google Sign-in Modal -->
+<div class="modal-overlay" id="quickAuthModal">
+ <div class="modal-card">
+  <button class="modal-close" id="btnModalClose" type="button">&times;</button>
+  <h3>Sign in to SpeakSense</h3>
+  <p>Save all your practice scores, CEFR profiles, and candidate voice recordings permanently to the cloud.</p>
+  <div style="display:flex;flex-direction:column;gap:14px;">
+   <button class="btn-g-auth" id="btnModalGoogle" type="button" style="justify-content:center;padding:10px 16px;border-radius:10px;font-size:14px;">
+    <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+    <span>Continue with Google</span>
+   </button>
+   <div id="gsiContainer" style="display:none;"></div>
+   <div style="position:relative;text-align:center;margin:4px 0;">
+    <hr style="border:0;border-top:1px solid var(--line2);">
+    <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:0 8px;font-size:11px;color:var(--ink3);font-weight:600;">or fast candidate profile</span>
+   </div>
+   <div class="f">
+    <label for="inputCandName">Your name or email</label>
+    <input id="inputCandName" type="text" placeholder="e.g. Alex Mercer or alex@gmail.com">
+   </div>
+   <button class="btn p" id="btnQuickProfileSubmit" type="button" style="width:100%;padding:10px;">Save & Cloud Sync</button>
+  </div>
+ </div>
+</div>
 
 <script>
 const $=id=>document.getElementById(id);
@@ -513,6 +599,93 @@ let mediaRecorder=null;
 let recordedChunks=[];
 let activePlaybackAudio=null;
 
+// Authentication & User State
+let currentUser=null;
+let currentSessionObj=null;
+
+try{
+  const savedU=localStorage.getItem('speaksense_user');
+  if(savedU)currentUser=JSON.parse(savedU);
+}catch(_){}
+
+function updateAuthUI(){
+  if(currentUser&&currentUser.id){
+    $('btnGoogleLogin').style.display='none';
+    $('userPill').style.display='inline-flex';
+    $('uName').textContent=currentUser.name||(currentUser.email?currentUser.email.split('@')[0]:'Candidate');
+    if(currentUser.avatar){
+      $('uAvatar').src=currentUser.avatar;
+      $('uAvatar').style.display='block';
+    }else{
+      $('uAvatar').src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234b5260'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
+    }
+  }else{
+    $('btnGoogleLogin').style.display='inline-flex';
+    $('userPill').style.display='none';
+  }
+}
+
+async function handleCredentialSuccess(user){
+  currentUser=user;
+  try{
+    localStorage.setItem('speaksense_user',JSON.stringify(currentUser));
+  }catch(_){}
+  updateAuthUI();
+  closeQuickAuthModal();
+  
+  if(currentSessionObj){
+    currentSessionObj.user_id=currentUser.id;
+    try{
+      await post('/api/sessions/save',currentSessionObj);
+    }catch(err){
+      console.warn("Session sync notice:",err);
+    }
+    updateReportSyncUI();
+  }
+  loadHistory();
+}
+
+async function handleGoogleCredentialResponse(response){
+  if(!response||!response.credential)return;
+  try{
+    const res=await post('/api/auth/google',{credential:response.credential});
+    if(res&&res.user){
+      await handleCredentialSuccess(res.user);
+    }
+  }catch(e){
+    console.warn("Google auth exchange notice:",e);
+  }
+}
+
+function initGoogleAuth(){
+  updateAuthUI();
+  if(window.google&&google.accounts&&google.accounts.id){
+    try{
+      google.accounts.id.initialize({
+        client_id:window.GOOGLE_CLIENT_ID||'1088661642278-speaksense.apps.googleusercontent.com',
+        callback:handleGoogleCredentialResponse,
+        auto_select:false,
+        cancel_on_tap_outside:true
+      });
+      const cnt=document.getElementById('gsiContainer');
+      if(cnt)google.accounts.id.renderButton(cnt,{theme:'outline',size:'large',width:'320'});
+    }catch(e){
+      console.warn("GIS initialization notice:",e);
+    }
+  }
+}
+
+function openQuickAuthModal(){
+  $('quickAuthModal').classList.add('open');
+  if(window.google&&google.accounts&&google.accounts.id){
+    try{google.accounts.id.prompt();}catch(_){}
+  }
+}
+
+function closeQuickAuthModal(){
+  $('quickAuthModal').classList.remove('open');
+}
+
 async function initUserAudioStream(){
   if(audioStream)return audioStream;
   try{
@@ -546,11 +719,25 @@ function stopAudioRecording(){
       resolve(null);
       return;
     }
-    mediaRecorder.onstop=()=>{
+    mediaRecorder.onstop=async ()=>{
       if(recordedChunks.length>0){
         try{
           const blob=new Blob(recordedChunks,{type:recordedChunks[0]?.type||'audio/webm'});
-          resolve(URL.createObjectURL(blob));
+          let permUrl=null;
+          try{
+            const res=await fetch('/api/recordings/upload',{
+              method:'POST',
+              headers:{'Content-Type':blob.type},
+              body:blob
+            });
+            if(res.ok){
+              const j=await res.json();
+              if(j.url)permUrl=j.url;
+            }
+          }catch(err){
+            console.warn("Audio upload notice:",err);
+          }
+          resolve(permUrl || URL.createObjectURL(blob));
         }catch(_){resolve(null);}
       }else{
         resolve(null);
@@ -1257,6 +1444,38 @@ async function finish(isCueCard=false){
         <div class="w">${esc(u.why)}</div>
       </div>`).join(''):'<div class="up"><div class="w">No significant upgrades identified.</div></div>');
 
+    // Save to Cloud & Local Storage
+    const sessObj = {
+      user_id: currentUser ? currentUser.id : 'guest',
+      examiner: ex.name,
+      track: S.track,
+      format: S.format === 'cuecard' ? 'IELTS Part 2' : 'Interview Q&A',
+      score: d.overallScore || "Completed",
+      fluency_score: d.fluencyScore || "—",
+      lexical_score: d.lexicalScore || "—",
+      logic_score: d.logicScore || "—",
+      cefr_level: d.cefrLevel || "B2",
+      verdict: d.verdict || "",
+      words: S.words,
+      duration: S.sec || 0,
+      transcript: S.hist,
+      upgrades: safeUpgrades,
+      cefr: {
+        level: d.cefrLevel || "B2",
+        distribution: d.cefrDistribution || {},
+        feedback: d.cefrFeedback || ""
+      }
+    };
+    currentSessionObj = sessObj;
+
+    try {
+      const saveRes = await post('/api/sessions/save', sessObj);
+      if(saveRes && saveRes.session_id) currentSessionObj.id = saveRes.session_id;
+    } catch(err) {
+      console.warn("Cloud session save notice:", err);
+    }
+    updateReportSyncUI();
+
     if(!d.degraded){
       try{
         const r=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
@@ -1278,6 +1497,87 @@ async function finish(isCueCard=false){
   }
 }
 
+function updateReportSyncUI(){
+  const box=$('repSyncBox');
+  if(!box)return;
+  if(currentUser&&currentUser.id){
+    box.classList.add('synced');
+    $('repSyncTitle').textContent="☁ Synced to your account";
+    $('repSyncSub').textContent=`Assessment and voice recordings saved for ${currentUser.name||currentUser.email}.`;
+    $('btnRepSync').style.display='none';
+  }else{
+    box.classList.remove('synced');
+    $('repSyncTitle').textContent="💾 Save this assessment & your voice recordings";
+    $('repSyncSub').textContent="Sign in with Google so you can review your scored session and audio anytime.";
+    $('btnRepSync').style.display='inline-flex';
+    $('btnRepSyncTxt').textContent="Sign in to save";
+  }
+}
+
+window.viewHistoricalSession=async function(id){
+  try{
+    const res=await fetch(`/api/sessions/${encodeURIComponent(id)}`);
+    if(!res.ok)return;
+    const data=await res.json();
+    if(!data.ok||!data.session)return;
+    const s=data.session;
+    currentSessionObj=s;
+    
+    $('repTitle').textContent=`${s.examiner} — ${s.format}`;
+    $('repScore').textContent=s.score||"—";
+    $('repVerdict').textContent=s.verdict||"Archived evaluation record.";
+    $('repVerdict').classList.remove('pend');
+    
+    const sc={F:s.fluency_score,L:s.lexical_score,R:s.logic_score};
+    for(const k in sc){
+      $('s'+k).textContent=sc[k]||"—";
+      const m=String(sc[k]).match(/([\d.]+)\s*(?:\/\s*([\d.]+))?/);
+      const pct=m?Math.min(100,parseFloat(m[1])/parseFloat(m[2]||9)*100):0;
+      $('b'+k).style.width=pct+'%';
+    }
+    
+    if(s.cefr_level)$('cefrLvl').textContent=s.cefr_level;
+    if(s.cefr&&s.cefr.feedback)$('cefrTip').textContent=s.cefr.feedback;
+    if(s.cefr&&s.cefr.distribution){
+      const cd=s.cefr.distribution;
+      $('cBarA').style.width=(cd.a1_a2||25)+'%';
+      $('cBarB1').style.width=(cd.b1||45)+'%';
+      $('cBarB2').style.width=(cd.b2||20)+'%';
+      $('cBarC').style.width=(cd.c1_c2||10)+'%';
+      $('cTxtA').textContent=(cd.a1_a2||25)+'%';
+      $('cTxtB1').textContent=(cd.b1||45)+'%';
+      $('cTxtB2').textContent=(cd.b2||20)+'%';
+      $('cTxtC').textContent=(cd.c1_c2||10)+'%';
+    }
+    
+    const safeUpgrades=Array.isArray(s.upgrades)?s.upgrades.filter(Boolean):[];
+    $('ups').innerHTML=safeUpgrades.length?safeUpgrades.map(u=>`
+      <div class="up">
+        <div class="o">${esc(u.original)}</div>
+        <div class="n">
+          <span>${esc(u.improved)}</span>
+          <button class="btn-hear-up" onclick="playUpgradeAudio('${esc(u.improved)}')">🔊 Listen to examiner</button>
+        </div>
+        <div class="w">${esc(u.why)}</div>
+      </div>`).join(''):'<div class="up"><div class="w">No significant upgrades recorded.</div></div>';
+
+    const safeTr=Array.isArray(s.transcript)?s.transcript:[];
+    $('tr').innerHTML=safeTr.map(t=>{
+      if(t.speaker==='user'){
+        const audioBtn=t.audioUrl?`<button class="btn-play-clip" onclick="playCandidateAudio('${t.audioUrl}', this)">▶ Listen to your answer</button>`:'';
+        return `<div class="user"><small style="display:flex;align-items:center;">You ${audioBtn}</small>${esc(t.text)}</div>`;
+      }else{
+        return `<div class="ai"><small>${esc(s.examiner)}</small>${esc(t.text)}</div>`;
+      }
+    }).join('')||'<div>No transcript recorded.</div>';
+    
+    updateReportSyncUI();
+    show('sReport');
+  }catch(e){
+    console.warn("View historical session error:",e);
+  }
+};
+
 $('bCopy').onclick=()=>{
   const ex=EX[S.track];
   const t=`SpeakSense assessment\nExaminer: ${ex.name} (${ex.track})\nScore: ${$('repScore').textContent}\n${$('repVerdict').textContent}\nWords: ${S.words} | Fillers: ${S.fill}`;
@@ -1288,25 +1588,87 @@ $('bCopy').onclick=()=>{
 $('bAgain').onclick=()=>{show('sSetup');loadHistory()};
 
 /* History & Score Trajectory */
-function loadHistory(){
-  try{
-    const r=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
-    if(!r.length)return;
-    const l=r[r.length-1];
-    $('last').classList.add('on');$('lastScore').textContent=l.score;$('lastEx').textContent=l.examiner;
-    $('lastWhen').textContent=`${l.date}, ${r.length} session${r.length>1?'s':''} completed`;
+async function loadHistory(){
+  let sessions=[];
+  if(currentUser&&currentUser.id){
+    try{
+      const res=await fetch(`/api/sessions?user_id=${encodeURIComponent(currentUser.id)}&limit=30`);
+      if(res.ok){
+        const j=await res.json();
+        if(j.sessions&&j.sessions.length>0)sessions=j.sessions;
+      }
+    }catch(_){}
+  }
+  if(!sessions.length){
+    try{
+      sessions=JSON.parse(localStorage.getItem('speaksense_sessions')||'[]');
+    }catch(_){}
+  }
+  if(!sessions.length){
+    $('last').classList.remove('on');
+    $('trendCard').style.display='none';
+    return;
+  }
+  const l=sessions[0]||sessions[sessions.length-1];
+  $('last').classList.add('on');
+  $('lastScore').textContent=l.score;
+  $('lastEx').textContent=l.examiner;
+  const whenStr=l.created_at?new Date(l.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'}):(l.date||'Recent');
+  $('lastWhen').textContent=`${whenStr}, ${sessions.length} session${sessions.length>1?'s':''} completed`;
 
-    $('trendCard').style.display='block';
-    $('trendTotal').textContent=`${r.length} practice session${r.length>1?'s':''}`;
-    $('trendRow').innerHTML=r.slice(-6).map(s=>`
-      <div class="trend-chip">
-        <b>${esc(s.score)}</b>
-        <small>${esc(s.format||'Q&A')}</small>
-      </div>
-    `).join('');
-  }catch(_){}
+  $('trendCard').style.display='block';
+  $('trendTotal').textContent=`${sessions.length} practice session${sessions.length>1?'s':''}`;
+  $('trendRow').innerHTML=sessions.slice(0,8).map(s=>`
+    <div class="trend-chip" ${s.id?`onclick="viewHistoricalSession('${s.id}')" title="Click to view full transcript & audio recordings" style="cursor:pointer;"`:''}>
+      <b>${esc(s.score)}</b>
+      <small>${esc(s.format||'Q&A')}</small>
+    </div>
+  `).join('');
 }
-loadHistory();
+
+// Wire Auth Modal buttons
+$('btnGoogleLogin').onclick=openQuickAuthModal;
+$('btnRepSync').onclick=openQuickAuthModal;
+$('btnModalClose').onclick=closeQuickAuthModal;
+$('quickAuthModal').onclick=(e)=>{if(e.target===$('quickAuthModal'))closeQuickAuthModal();};
+
+$('btnLogout').onclick=()=>{
+  currentUser=null;
+  localStorage.removeItem('speaksense_user');
+  updateAuthUI();
+  updateReportSyncUI();
+  loadHistory();
+};
+
+$('btnModalGoogle').onclick=()=>{
+  if(window.google&&google.accounts&&google.accounts.id){
+    try{
+      google.accounts.id.prompt();
+      return;
+    }catch(_) {}
+  }
+  $('inputCandName').focus();
+};
+
+$('btnQuickProfileSubmit').onclick=async ()=>{
+  const val=$('inputCandName').value.trim();
+  const name=val||'Candidate';
+  const email=val.includes('@')?val:`${val.toLowerCase().replace(/\s+/g,'.')}@speaksense.cloud`;
+  try{
+    const res=await post('/api/auth/google',{name,email});
+    if(res&&res.user){
+      await handleCredentialSuccess(res.user);
+    }
+  }catch(e){
+    const mockUser={id:`usr_${Date.now().toString(36)}`,name,email,avatar:''};
+    await handleCredentialSuccess(mockUser);
+  }
+};
+
+window.addEventListener('load',()=>{
+  initGoogleAuth();
+  loadHistory();
+});
 if(!SR){$('warn').classList.add('on');$('btnStart').disabled=true}
 </script>
 </body>

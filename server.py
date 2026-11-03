@@ -1,10 +1,13 @@
 import asyncio
+import base64
 import hashlib
 import json
 import os
 import re
+import sqlite3
 import tempfile
 import time
+import uuid
 from aiohttp import web, ClientSession, ClientTimeout, TCPConnector
 import edge_tts
 
@@ -18,10 +21,55 @@ VOICE_MAP = {
 ALLOWED_VOICES = set(VOICE_MAP.values())
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "audio_cache")
+RECORDINGS_DIR = os.path.join(os.path.dirname(__file__), "recordings")
+DB_PATH = os.path.join(os.path.dirname(__file__), "speaksense.db")
+
 try:
     os.makedirs(CACHE_DIR, exist_ok=True)
+    os.makedirs(RECORDINGS_DIR, exist_ok=True)
 except Exception:
     pass
+
+def init_db():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            email TEXT,
+            name TEXT,
+            avatar TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """)
+        c.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            id TEXT PRIMARY KEY,
+            user_id TEXT,
+            examiner TEXT,
+            track TEXT,
+            format TEXT,
+            score TEXT,
+            fluency_score TEXT,
+            lexical_score TEXT,
+            logic_score TEXT,
+            cefr_level TEXT,
+            verdict TEXT,
+            words INTEGER DEFAULT 0,
+            duration INTEGER DEFAULT 0,
+            transcript_json TEXT,
+            upgrades_json TEXT,
+            cefr_json TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+        );
+        """)
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"[DB Notice] init_db warning: {e}")
 
 TTS_SEMAPHORE = asyncio.Semaphore(6)
 IN_FLIGHT_TTS = {}
@@ -572,6 +620,285 @@ Return JSON:
     }
     return web.json_response(fallback_eval)
 
+async def handle_upload_recording(request):
+    try:
+        body = await request.read()
+        if not body:
+            return web.json_response({"error": "Empty audio payload"}, status=400)
+        if len(body) > 20 * 1024 * 1024:
+            return web.json_response({"error": "Audio recording exceeds 20MB limit"}, status=413)
+
+        rec_id = f"rec_{uuid.uuid4().hex[:14]}.webm"
+        rec_path = os.path.join(RECORDINGS_DIR, rec_id)
+
+        with tempfile.NamedTemporaryFile(dir=RECORDINGS_DIR, delete=False, suffix=".tmp") as tf:
+            tf.write(body)
+            temp_name = tf.name
+        os.replace(temp_name, rec_path)
+
+        return web.json_response({
+            "ok": True,
+            "filename": rec_id,
+            "url": f"/recordings/{rec_id}"
+        })
+    except Exception as e:
+        print(f"[Upload Error] {e}")
+        return web.json_response({"error": f"Upload failed: {str(e)}"}, status=500)
+
+async def handle_get_recording(request):
+    filename = os.path.basename(request.match_info.get("filename", ""))
+    if not filename or not (filename.endswith(".webm") or filename.endswith(".mp4") or filename.endswith(".wav")):
+        return web.Response(text="Not found", status=404)
+    filepath = os.path.join(RECORDINGS_DIR, filename)
+    if not os.path.exists(filepath):
+        return web.Response(text="Not found", status=404)
+    return web.FileResponse(filepath)
+
+async def handle_auth_google(request):
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    credential = str(data.get("credential", "")).strip()
+    user_id = ""
+    email = ""
+    name = ""
+    avatar = ""
+
+    # Decode Google Identity Services JWT payload safely (standard library base64)
+    if credential and "." in credential:
+        try:
+            parts = credential.split(".")
+            if len(parts) >= 2:
+                payload_b64 = parts[1]
+                payload_b64 += "=" * (-len(payload_b64) % 4)
+                payload = json.loads(base64.urlsafe_b64decode(payload_b64.encode("utf-8")).decode("utf-8"))
+                user_id = str(payload.get("sub", "")).strip()
+                email = str(payload.get("email", "")).strip()
+                name = str(payload.get("name", "")).strip() or (email.split("@")[0] if email else "Candidate")
+                avatar = str(payload.get("picture", "")).strip()
+        except Exception as e:
+            print(f"[Auth Notice] JWT decode notice: {e}")
+
+    # Fallback for manual or simulated profile
+    if not user_id:
+        email = str(data.get("email", "")).strip()
+        name = str(data.get("name", "")).strip() or (email.split("@")[0] if email else "Candidate")
+        avatar = str(data.get("avatar", "")).strip()
+        user_id = str(data.get("id", "")).strip()
+        if not user_id and (email or name):
+            user_id = f"usr_{hashlib.md5((email or name or str(time.time())).encode()).hexdigest()[:12]}"
+
+    if not user_id:
+        return web.json_response({"error": "Could not identify user from credentials"}, status=400)
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO users (id, email, name, avatar, last_login)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+                email=CASE WHEN excluded.email != '' THEN excluded.email ELSE users.email END,
+                name=CASE WHEN excluded.name != '' THEN excluded.name ELSE users.name END,
+                avatar=CASE WHEN excluded.avatar != '' THEN excluded.avatar ELSE users.avatar END,
+                last_login=CURRENT_TIMESTAMP;
+        """, (user_id, email, name, avatar))
+        conn.commit()
+
+        c.execute("SELECT id, email, name, avatar, created_at FROM users WHERE id = ?", (user_id,))
+        row = c.fetchone()
+        conn.close()
+
+        user = {
+            "id": row[0],
+            "email": row[1] or "",
+            "name": row[2] or "Candidate",
+            "avatar": row[3] or "",
+            "created_at": str(row[4])
+        }
+        return web.json_response({"ok": True, "user": user})
+    except Exception as e:
+        print(f"[Auth DB Error] {e}")
+        return web.json_response({"error": "Database error saving user"}, status=500)
+
+async def handle_auth_me(request):
+    user_id = request.query.get("user_id", "").strip()
+    if not user_id:
+        return web.json_response({"authenticated": False, "user": None})
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("SELECT id, email, name, avatar, created_at FROM users WHERE id = ?", (user_id,))
+        row = c.fetchone()
+        conn.close()
+        if not row:
+            return web.json_response({"authenticated": False, "user": None})
+        return web.json_response({
+            "authenticated": True,
+            "user": {
+                "id": row[0],
+                "email": row[1] or "",
+                "name": row[2] or "Candidate",
+                "avatar": row[3] or "",
+                "created_at": str(row[4])
+            }
+        })
+    except Exception as e:
+        return web.json_response({"authenticated": False, "error": str(e)})
+
+async def handle_save_session(request):
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    user_id = str(data.get("user_id", "guest")).strip() or "guest"
+    session_id = str(data.get("id") or f"sess_{uuid.uuid4().hex[:12]}")
+    examiner = str(data.get("examiner", "Examiner"))
+    track = str(data.get("track", "ielts"))
+    fmt = str(data.get("format", "Interview Q&A"))
+    score = str(data.get("score", "Completed"))
+    fluency = str(data.get("fluency_score", "—"))
+    lexical = str(data.get("lexical_score", "—"))
+    logic = str(data.get("logic_score", "—"))
+    cefr_level = str(data.get("cefr_level", "B2"))
+    verdict = str(data.get("verdict", ""))
+    words = int(data.get("words", 0))
+    duration = int(data.get("duration", 0))
+
+    transcript_json = json.dumps(data.get("transcript", []))
+    upgrades_json = json.dumps(data.get("upgrades", []))
+    cefr_json = json.dumps(data.get("cefr", {}))
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        # Guarantee foreign key user exists
+        c.execute("""
+            INSERT OR IGNORE INTO users (id, email, name, avatar)
+            VALUES (?, ?, ?, '')
+        """, (user_id, f"{user_id}@speaksense.local" if user_id == "guest" else "", "Guest Candidate" if user_id == "guest" else "User"))
+
+        c.execute("""
+            INSERT OR REPLACE INTO sessions (
+                id, user_id, examiner, track, format, score,
+                fluency_score, lexical_score, logic_score, cefr_level,
+                verdict, words, duration, transcript_json, upgrades_json,
+                cefr_json, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """, (
+            session_id, user_id, examiner, track, fmt, score,
+            fluency, lexical, logic, cefr_level,
+            verdict, words, duration, transcript_json, upgrades_json, cefr_json
+        ))
+        conn.commit()
+        conn.close()
+        return web.json_response({"ok": True, "session_id": session_id})
+    except Exception as e:
+        print(f"[Save Session Error] {e}")
+        return web.json_response({"error": f"Failed to save session: {str(e)}"}, status=500)
+
+async def handle_get_sessions(request):
+    user_id = request.query.get("user_id", "").strip()
+    if not user_id:
+        return web.json_response({"ok": True, "sessions": []})
+
+    limit = min(50, max(1, int(request.query.get("limit", 30))))
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, examiner, track, format, score, fluency_score, lexical_score, logic_score, cefr_level, verdict, words, duration, created_at
+            FROM sessions
+            WHERE user_id = ?
+            ORDER BY datetime(created_at) DESC
+            LIMIT ?
+        """, (user_id, limit))
+        rows = c.fetchall()
+        conn.close()
+
+        sessions = []
+        for r in rows:
+            sessions.append({
+                "id": r[0],
+                "examiner": r[1],
+                "track": r[2],
+                "format": r[3],
+                "score": r[4],
+                "fluency_score": r[5],
+                "lexical_score": r[6],
+                "logic_score": r[7],
+                "cefr_level": r[8],
+                "verdict": r[9],
+                "words": r[10],
+                "duration": r[11],
+                "created_at": str(r[12])
+            })
+        return web.json_response({"ok": True, "sessions": sessions})
+    except Exception as e:
+        print(f"[Get Sessions Error] {e}")
+        return web.json_response({"ok": False, "error": str(e), "sessions": []})
+
+async def handle_get_session_detail(request):
+    sess_id = request.match_info.get("id", "").strip()
+    if not sess_id:
+        return web.json_response({"error": "Missing session ID"}, status=400)
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+            SELECT id, user_id, examiner, track, format, score, fluency_score, lexical_score, logic_score, cefr_level, verdict, words, duration, transcript_json, upgrades_json, cefr_json, created_at
+            FROM sessions
+            WHERE id = ?
+        """, (sess_id,))
+        row = c.fetchone()
+        conn.close()
+
+        if not row:
+            return web.json_response({"error": "Session not found"}, status=404)
+
+        try:
+            transcript = json.loads(row[13]) if row[13] else []
+        except Exception:
+            transcript = []
+        try:
+            upgrades = json.loads(row[14]) if row[14] else []
+        except Exception:
+            upgrades = []
+        try:
+            cefr = json.loads(row[15]) if row[15] else {}
+        except Exception:
+            cefr = {}
+
+        return web.json_response({
+            "ok": True,
+            "session": {
+                "id": row[0],
+                "user_id": row[1],
+                "examiner": row[2],
+                "track": row[3],
+                "format": row[4],
+                "score": row[5],
+                "fluency_score": row[6],
+                "lexical_score": row[7],
+                "logic_score": row[8],
+                "cefr_level": row[9],
+                "verdict": row[10],
+                "words": row[11],
+                "duration": row[12],
+                "transcript": transcript,
+                "upgrades": upgrades,
+                "cefr": cefr,
+                "created_at": str(row[16])
+            }
+        })
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500)
+
 async def handle_index(request):
     content = request.app["index_html"]
     headers = {
@@ -615,6 +942,8 @@ def create_app():
     else:
         app["ad_html"] = app["index_html"]
 
+    init_db()
+
     app.router.add_get("/", handle_index)
     app.router.add_get("/index.html", handle_index)
     app.router.add_get("/ad", handle_ad)
@@ -624,6 +953,19 @@ def create_app():
     app.router.add_post("/api/comprehend", handle_comprehend)
     app.router.add_post("/api/hint", handle_hint)
     app.router.add_post("/api/analyze", handle_analyze)
+
+    # Recordings & Cloud Persistence
+    app.router.add_post("/api/recordings/upload", handle_upload_recording)
+    app.router.add_get("/recordings/{filename}", handle_get_recording)
+
+    # Authentication & User Profiles
+    app.router.add_post("/api/auth/google", handle_auth_google)
+    app.router.add_get("/api/auth/me", handle_auth_me)
+
+    # Session Cloud Sync & History
+    app.router.add_post("/api/sessions/save", handle_save_session)
+    app.router.add_get("/api/sessions", handle_get_sessions)
+    app.router.add_get("/api/sessions/{id}", handle_get_session_detail)
     return app
 
 if __name__ == "__main__":
