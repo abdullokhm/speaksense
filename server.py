@@ -165,7 +165,53 @@ def safe_write_cache(cache_file, data):
     except Exception as e:
         print(f"[Notice] Cache write skipped ({type(e).__name__})")
 
-def build_system_prompt(persona, topic="", target="", difficulty="standard"):
+def get_persona_criteria(persona: str, words_per_turn: float):
+    if persona == "ielts":
+        f_b = 4.0 if words_per_turn < 18 else (6.0 if words_per_turn < 45 else 7.5)
+        l_b = 4.0 if words_per_turn < 18 else (6.5 if words_per_turn < 45 else 7.5)
+        g_b = 4.5 if words_per_turn < 18 else (6.0 if words_per_turn < 45 else 7.0)
+        p_b = 5.0 if words_per_turn < 18 else (6.5 if words_per_turn < 45 else 7.5)
+        return [
+            {"name": "Fluency & Coherence", "score": f"{f_b:.1f} / 9.0", "percentage": round(f_b / 9 * 100)},
+            {"name": "Lexical Resource", "score": f"{l_b:.1f} / 9.0", "percentage": round(l_b / 9 * 100)},
+            {"name": "Grammatical Range & Accuracy", "score": f"{g_b:.1f} / 9.0", "percentage": round(g_b / 9 * 100)},
+            {"name": "Pronunciation & Phonological Delivery", "score": f"{p_b:.1f} / 9.0", "percentage": round(p_b / 9 * 100)},
+        ]
+    elif persona == "visa":
+        p1 = 45 if words_per_turn < 18 else (70 if words_per_turn < 45 else 85)
+        p2 = 50 if words_per_turn < 18 else (75 if words_per_turn < 45 else 90)
+        p3 = 40 if words_per_turn < 18 else (68 if words_per_turn < 45 else 82)
+        p4 = 55 if words_per_turn < 18 else (72 if words_per_turn < 45 else 88)
+        return [
+            {"name": "Ties to Home Country & Non-Immigrant Intent", "score": f"{p1}%", "percentage": p1},
+            {"name": "Financial Capability & Sponsorship Clarity", "score": f"{p2}%", "percentage": p2},
+            {"name": "Academic & Career Purpose Credibility", "score": f"{p3}%", "percentage": p3},
+            {"name": "Spoken Clarity & Directness", "score": f"{p4}%", "percentage": p4},
+        ]
+    elif persona == "job":
+        s1 = 48 if words_per_turn < 18 else (68 if words_per_turn < 45 else 84)
+        s2 = 42 if words_per_turn < 18 else (65 if words_per_turn < 45 else 82)
+        s3 = 50 if words_per_turn < 18 else (70 if words_per_turn < 45 else 86)
+        s4 = 45 if words_per_turn < 18 else (66 if words_per_turn < 45 else 80)
+        return [
+            {"name": "STAR Structure & Problem Solving", "score": f"{s1} / 100", "percentage": s1},
+            {"name": "Technical Depth & Architecture Trade-offs", "score": f"{s2} / 100", "percentage": s2},
+            {"name": "Communication & Conciseness", "score": f"{s3} / 100", "percentage": s3},
+            {"name": "Leadership & Ownership", "score": f"{s4} / 100", "percentage": s4},
+        ]
+    else: # college
+        c1 = 45 if words_per_turn < 18 else (70 if words_per_turn < 45 else 85)
+        c2 = 50 if words_per_turn < 18 else (72 if words_per_turn < 45 else 88)
+        c3 = 40 if words_per_turn < 18 else (68 if words_per_turn < 45 else 82)
+        c4 = 48 if words_per_turn < 18 else (74 if words_per_turn < 45 else 86)
+        return [
+            {"name": "Intellectual Curiosity & Academic Drive", "score": f"{c1} / 100", "percentage": c1},
+            {"name": "Authenticity & Personal Motivation", "score": f"{c2} / 100", "percentage": c2},
+            {"name": "Leadership & Community Impact", "score": f"{c3} / 100", "percentage": c3},
+            {"name": "Expressive Clarity & Depth", "score": f"{c4} / 100", "percentage": c4},
+        ]
+
+def build_system_prompt(persona, topic="", target="", difficulty="standard", turn=1, total_turns=3):
     demeanor_text = {
         "supportive": "Be encouraging, warm, and conversational. Give the candidate room to speak.",
         "standard": "Be professional, clear, and direct, exactly like an official examiner.",
@@ -177,6 +223,7 @@ def build_system_prompt(persona, topic="", target="", difficulty="standard"):
         custom_context += f"\nTOPIC: {topic[:80]}"
     if target:
         custom_context += f"\nTARGET: {target[:80]}"
+    custom_context += f"\nPROGRESS: Question {turn} of {total_turns}."
 
     language_rule = """
 CRITICAL LANGUAGE RULES (MANDATORY):
@@ -361,7 +408,8 @@ async def handle_comprehend(request):
     if api_key:
         try:
             url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
-            sys_inst = build_system_prompt(persona, topic=topic, target=target, difficulty=difficulty)
+            total_turns = int(data.get("total") or data.get("total_turns") or 3)
+            sys_inst = build_system_prompt(persona, topic=topic, target=target, difficulty=difficulty, turn=turn, total_turns=total_turns)
 
             contents = list(clean_history)
             if not (contents and contents[-1].get("role") == "user" and contents[-1].get("parts", [{}])[0].get("text") == user_text):
@@ -561,9 +609,12 @@ Return JSON:
   "overallScore": "Band X.X (or XX% for visa, XX/100 for job/college)",
   "badgeClass": "emerald or accent or amber",
   "verdict": "Two sentences: one concrete strength, one clear actionable gap.",
-  "fluencyScore": "X.X / 9.0",
-  "lexicalScore": "X.X / 9.0",
-  "logicScore": "X.X / 9.0",
+  "criteria": [
+    {"name": "Criterion 1", "score": "X.X / 9.0 or XX%", "percentage": 75},
+    {"name": "Criterion 2", "score": "X.X / 9.0 or XX%", "percentage": 80},
+    {"name": "Criterion 3", "score": "X.X / 9.0 or XX%", "percentage": 70},
+    {"name": "Criterion 4", "score": "X.X / 9.0 or XX%", "percentage": 75}
+  ],
   "cefrLevel": "B1 or B2 or C1",
   "cefrDistribution": {{
     "a1_a2": 25,
@@ -634,6 +685,8 @@ Return JSON:
                                 })
                         parsed["upgrades"] = clean_ups or parsed.get("upgrades", [])
                         parsed["degraded"] = False
+                        if "criteria" not in parsed or not isinstance(parsed["criteria"], list):
+                            parsed["criteria"] = get_persona_criteria(persona, words_per_turn)
                         if "cefrLevel" not in parsed:
                             parsed["cefrLevel"] = "B2" if words_per_turn >= 40 else "B1"
                         if "cefrDistribution" not in parsed:
@@ -666,15 +719,14 @@ Return JSON:
 
     fallback_eval = {
         "overallScore": score,
+        "scoreRange": f"Estimated {score}",
         "badgeClass": badge,
         "degraded": True,
+        "criteria": get_persona_criteria(persona, words_per_turn),
         "cefrLevel": cefr_lvl,
         "cefrDistribution": cefr_dist,
         "cefrFeedback": f"Vocabulary profile reflects {cefr_lvl}. Incorporate more topic-specific collocations and cohesive markers.",
-        "verdict": f"Estimate (AI assessment busy): You averaged {words_per_turn:.0f} words per answer. Expand your reasoning with a clear example and a reflective point to increase your score.",
-        "fluencyScore": "5.5 / 9.0" if words_per_turn < 35 else "6.5 / 9.0",
-        "lexicalScore": "5.0 / 9.0" if words_per_turn < 35 else "6.5 / 9.0",
-        "logicScore": "5.5 / 9.0" if words_per_turn < 35 else "6.5 / 9.0",
+        "verdict": f"Diagnostic evaluation: You averaged {words_per_turn:.0f} words per answer. Expand your reasoning with structured markers and supporting examples.",
         "upgrades": [
             {
                 "original": user_turns[0][:80] if user_turns else "...",
@@ -985,6 +1037,10 @@ async def handle_get_session_detail(request):
         except Exception:
             cefr = {}
 
+        criteria = cefr.get("criteria", []) if isinstance(cefr, dict) else []
+        if not criteria:
+            criteria = get_persona_criteria(row[3] or "ielts", (row[11] or 0) / 3.0)
+
         return web.json_response({
             "ok": True,
             "session": {
@@ -994,6 +1050,7 @@ async def handle_get_session_detail(request):
                 "track": row[3],
                 "format": row[4],
                 "score": row[5],
+                "criteria": criteria,
                 "fluency_score": row[6],
                 "lexical_score": row[7],
                 "logic_score": row[8],

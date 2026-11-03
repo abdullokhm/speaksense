@@ -253,6 +253,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .modal-divider{position:relative;text-align:center;margin:18px 0 14px}
 .modal-divider hr{border:0;border-top:1px solid var(--line)}
 .modal-divider span{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:0 10px;font-size:12px;color:var(--ink3);font-weight:500}
+.input-pulse{border-color:var(--blue)!important;box-shadow:0 0 0 3px rgba(43,63,214,.18)!important;transition:all .2s ease}
 .btn-guest-link{background:none;border:none;color:var(--ink3);font-size:13px;cursor:pointer;padding:6px 10px;border-radius:6px;transition:.15s;text-decoration:underline;text-underline-offset:3px}
 .btn-guest-link:hover{color:var(--ink)}
 
@@ -444,10 +445,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
    <div class="score" id="repScore">…</div>
   </div>
   <p class="verdict pend" id="repVerdict">Scoring your answers…</p>
-  <div class="crit">
-   <div><span>Fluency and coherence</span><span class="bar"><i id="bF"></i></span><b id="sF">–</b></div>
-   <div><span>Lexical range</span><span class="bar"><i id="bL"></i></span><b id="sL">–</b></div>
-   <div><span>Reasoning and structure</span><span class="bar"><i id="bR"></i></span><b id="sR">–</b></div>
+  <div class="crit" id="critContainer">
+   <div><span>Fluency & Coherence</span><span class="bar"><i id="bF"></i></span><b id="sF">–</b></div>
+   <div><span>Lexical Resource</span><span class="bar"><i id="bL"></i></span><b id="sL">–</b></div>
+   <div><span>Grammar & Accuracy</span><span class="bar"><i id="bG"></i></span><b id="sG">–</b></div>
+   <div><span>Pronunciation & Delivery</span><span class="bar"><i id="bP"></i></span><b id="sP">–</b></div>
   </div>
 
   <!-- CEFR Lexical Profile -->
@@ -495,11 +497,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 </main>
 
 <!-- Welcome Auth / Google Sign-in Modal (shows on first visit) -->
-<div class="modal-overlay" id="quickAuthModal">
+<div class="modal-overlay" id="quickAuthModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
  <div class="modal-card">
-  <button class="modal-close" id="btnModalClose" type="button">&times;</button>
+  <button class="modal-close" id="btnModalClose" type="button" aria-label="Close dialog">&times;</button>
   <div class="modal-brand"><i></i>SpeakSense</div>
-  <h3>Welcome to SpeakSense</h3>
+  <h3 id="modalTitle">Welcome to SpeakSense</h3>
   <p>Sign in to save your practice scores, CEFR profiles, and candidate voice recordings across devices. Or try as a guest first.</p>
   <div style="display:flex;flex-direction:column;gap:12px;">
    <button class="btn-g-modal" id="btnModalGoogle" type="button">
@@ -509,13 +511,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
    <div id="gsiContainer" style="display:none;"></div>
    <div class="modal-divider">
     <hr>
-    <span>or quick profile</span>
+    <span>or email sign in</span>
    </div>
    <div class="f">
-    <label for="inputCandName">Your name or email</label>
-    <input id="inputCandName" type="text" placeholder="e.g. Alex Mercer or alex@gmail.com">
+    <label for="inputCandName">Your email or name</label>
+    <input id="inputCandName" type="text" placeholder="e.g. alex@gmail.com or Alex Mercer">
    </div>
-   <button class="btn p" id="btnQuickProfileSubmit" type="button" style="width:100%;padding:11px;">Create account & save progress</button>
+   <button class="btn p" id="btnQuickProfileSubmit" type="button" style="width:100%;padding:11px;">Continue & save progress</button>
    <div style="text-align:center;margin-top:4px;">
     <button class="btn-guest-link" id="btnSkipAuth" type="button">Skip for now — try as guest</button>
    </div>
@@ -919,6 +921,24 @@ function stopAudio(){
   }
 }
 
+function speakWithBrowserSynth(text,ondone){
+  if(!('speechSynthesis' in window)){
+    if(ondone)ondone();
+    return;
+  }
+  try{
+    window.speechSynthesis.cancel();
+    const ut=new SpeechSynthesisUtterance(text);
+    ut.lang='en-US';
+    ut.rate=0.96;
+    ut.onend=()=>{if(ondone)ondone();};
+    ut.onerror=()=>{if(ondone)ondone();};
+    window.speechSynthesis.speak(ut);
+  }catch(_){
+    if(ondone)ondone();
+  }
+}
+
 async function speak(text,done){
   const mySid=sid;
   stopAudio();
@@ -938,9 +958,9 @@ async function speak(text,done){
   };
 
   safetyTimer=setTimeout(()=>{
-    console.warn("TTS watchdog triggered.");
-    finishSpeak();
-  },14000);
+    console.warn("TTS watchdog triggered. Falling back to browser voice…");
+    speakWithBrowserSynth(text,finishSpeak);
+  },12000);
 
   const a=getAudio();
   let fallbackAttempted=false;
@@ -978,8 +998,8 @@ async function speak(text,done){
       a.src=u;
       await a.play();
     }catch(err){
-      console.warn("TTS fallback failed:",err);
-      finishSpeak();
+      console.warn("Server TTS failed, falling back to browser speech synthesis:",err);
+      speakWithBrowserSynth(text,finishSpeak);
     }
   };
 
@@ -1468,18 +1488,7 @@ async function finish(isCueCard=false){
     $('repVerdict').textContent=d.verdict||"Performance evaluation completed.";
     $('repVerdict').classList.remove('pend');
     
-    const sc={
-      F:d.fluencyScore||"—",
-      L:d.lexicalScore||"—",
-      R:d.logicScore||"—"
-    };
-
-    for(const k in sc){
-      $('s'+k).textContent=sc[k];
-      const m=String(sc[k]).match(/([\d.]+)\s*(?:\/\s*([\d.]+))?/);
-      const pct=m?Math.min(100,parseFloat(m[1])/parseFloat(m[2]||9)*100):0;
-      requestAnimationFrame(()=>requestAnimationFrame(()=>$('b'+k).style.width=pct+'%'));
-    }
+    renderCriteria(d.criteria);
 
     // CEFR Profile rendering
     if(d.cefrLevel)$('cefrLvl').textContent=d.cefrLevel;
@@ -1515,9 +1524,10 @@ async function finish(isCueCard=false){
       track: S.track,
       format: S.format === 'cuecard' ? 'IELTS Part 2' : 'Interview Q&A',
       score: d.overallScore || "Completed",
-      fluency_score: d.fluencyScore || "—",
-      lexical_score: d.lexicalScore || "—",
-      logic_score: d.logicScore || "—",
+      criteria: d.criteria || [],
+      fluency_score: d.fluencyScore || (d.criteria&&d.criteria[0]?d.criteria[0].score:"—"),
+      lexical_score: d.lexicalScore || (d.criteria&&d.criteria[1]?d.criteria[1].score:"—"),
+      logic_score: d.logicScore || (d.criteria&&d.criteria[2]?d.criteria[2].score:"—"),
       cefr_level: d.cefrLevel || "B2",
       verdict: d.verdict || "",
       words: S.words,
@@ -1527,7 +1537,8 @@ async function finish(isCueCard=false){
       cefr: {
         level: d.cefrLevel || "B2",
         distribution: d.cefrDistribution || {},
-        feedback: d.cefrFeedback || ""
+        feedback: d.cefrFeedback || "",
+        criteria: d.criteria || []
       }
     };
     currentSessionObj = sessObj;
@@ -1593,12 +1604,16 @@ window.viewHistoricalSession=async function(id){
     $('repVerdict').textContent=s.verdict||"Archived evaluation record.";
     $('repVerdict').classList.remove('pend');
     
-    const sc={F:s.fluency_score,L:s.lexical_score,R:s.logic_score};
-    for(const k in sc){
-      $('s'+k).textContent=sc[k]||"—";
-      const m=String(sc[k]).match(/([\d.]+)\s*(?:\/\s*([\d.]+))?/);
-      const pct=m?Math.min(100,parseFloat(m[1])/parseFloat(m[2]||9)*100):0;
-      $('b'+k).style.width=pct+'%';
+    if(s.criteria && Array.isArray(s.criteria) && s.criteria.length){
+      renderCriteria(s.criteria);
+    }else if(s.cefr && Array.isArray(s.cefr.criteria) && s.cefr.criteria.length){
+      renderCriteria(s.cefr.criteria);
+    }else{
+      renderCriteria([
+        {name:"Fluency & Coherence",score:s.fluency_score||"—",percentage:65},
+        {name:"Lexical Resource",score:s.lexical_score||"—",percentage:65},
+        {name:"Structure & Delivery",score:s.logic_score||"—",percentage:65}
+      ]);
     }
     
     if(s.cefr_level)$('cefrLvl').textContent=s.cefr_level;
@@ -1681,40 +1696,95 @@ async function loadHistory(){
   const l=sessions[0]||sessions[sessions.length-1];
   $('last').classList.add('on');
   $('lastScore').textContent=l.score;
-  $('lastEx').textContent=l.examiner;
-  const whenStr=l.created_at?new Date(l.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric'}):(l.date||'Recent');
-  $('lastWhen').textContent=`${whenStr}, ${sessions.length} session${sessions.length>1?'s':''} completed`;
+  const exTitle=l.examiner?` with ${l.examiner}`:'';
+  $('lastEx').textContent=exTitle.replace(/^ with /,'');
+  if(!l.examiner){
+    $('last').innerHTML=`Last session: <b>${esc(l.score)}</b><br><span id="lastWhen"></span>`;
+  }
+  const whenStr=l.created_at?new Date(l.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}):(l.date||'Recent');
+  const whenEl=$('lastWhen');
+  if(whenEl)whenEl.textContent=`${whenStr}, ${sessions.length} session${sessions.length>1?'s':''} completed`;
 
   $('trendCard').style.display='block';
   $('trendTotal').textContent=`${sessions.length} practice session${sessions.length>1?'s':''}`;
-  $('trendRow').innerHTML=sessions.slice(0,8).map(s=>`
-    <div class="trend-chip" ${s.id?`data-id="${esc(s.id)}" style="cursor:pointer;" title="Click to view full transcript & audio recordings"`:''}>
-      <b>${esc(s.score)}</b>
-      <small>${esc(s.format||'Q&A')}</small>
-    </div>
-  `).join('');
+  $('trendRow').innerHTML=sessions.slice(0,8).map(s=>{
+    const rawFmt=s.format||(s.track?s.track.toUpperCase():'Q&A');
+    const badgeFmt=rawFmt.includes('Cue')||rawFmt.includes('Part 2')?'Part 2':'Q&A';
+    return `
+      <div class="trend-chip" ${s.id?`data-id="${esc(s.id)}" style="cursor:pointer;" title="Click to view full transcript & audio recordings"`:''}>
+        <b>${esc(s.score)}</b>
+        <small>${esc(badgeFmt)}</small>
+      </div>
+    `;
+  }).join('');
+}
+
+function promptEmailLogin(){
+  openQuickAuthModal();
+  const inp=$('inputCandName');
+  if(inp){
+    inp.focus();
+    inp.classList.add('input-pulse');
+    setTimeout(()=>inp.classList.remove('input-pulse'),2200);
+    inp.placeholder="Enter your Google email (e.g. user@gmail.com)";
+  }
+  const bTxt=$('btnModalGoogle')?$('btnModalGoogle').querySelector('span'):null;
+  if(bTxt){
+    const orig=bTxt.textContent;
+    bTxt.textContent="Enter your email below ⬇";
+    setTimeout(()=>{bTxt.textContent=orig;},3000);
+  }
+}
+
+function triggerGoogleOrEmailAuth(){
+  openQuickAuthModal();
+  if(window.GOOGLE_CLIENT_ID&&window.google&&google.accounts&&google.accounts.id){
+    try{
+      google.accounts.id.prompt((notification)=>{
+        if(!notification||notification.isNotDisplayed()||notification.isSkippedMoment()){
+          promptEmailLogin();
+        }
+      });
+      return;
+    }catch(_){}
+  }
+  promptEmailLogin();
 }
 
 // Wire Auth Modal buttons
-$('btnGoogleLogin').onclick=openQuickAuthModal;
+$('btnGoogleLogin').onclick=()=>{
+  triggerGoogleOrEmailAuth();
+};
 $('btnRepSync').onclick=openQuickAuthModal;
 $('btnModalClose').onclick=closeQuickAuthModal;
 $('quickAuthModal').onclick=(e)=>{if(e.target===$('quickAuthModal'))closeQuickAuthModal();};
 
+// Accessibility: Close modals & hint on Escape
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Escape'){
+    if($('quickAuthModal').classList.contains('open'))closeQuickAuthModal();
+    if($('hint').classList.contains('on'))$('hint').classList.remove('on');
+  }
+});
+
 // Skip / Guest button
 $('btnSkipAuth').onclick=()=>{
   closeQuickAuthModal();
-  try{localStorage.setItem('speaksense_guest_dismissed','1');}catch(_){}
+  try{sessionStorage.setItem('speaksense_guest_session','1');}catch(_){}
 };
 
 $('btnLogout').onclick=()=>{
   currentUser=null;
   localStorage.removeItem('speaksense_user');
   localStorage.removeItem('speaksense_token');
+  sessionStorage.removeItem('speaksense_guest_session');
   try{localStorage.removeItem('speaksense_guest_dismissed');}catch(_){}
   updateAuthUI();
   updateReportSyncUI();
-  ensureSessionToken().then(()=>loadHistory());
+  ensureSessionToken().then(()=>{
+    loadHistory();
+    openQuickAuthModal();
+  });
 };
 
 // Global click delegation (safe apostrophe & quote handling)
@@ -1785,30 +1855,7 @@ async function submitQuickProfile(){
 }
 
 $('btnModalGoogle').onclick=()=>{
-  if(window.GOOGLE_CLIENT_ID&&window.google&&google.accounts&&google.accounts.id){
-    try{
-      google.accounts.id.prompt((notification)=>{
-        if(notification.isNotDisplayed()||notification.isSkippedMoment()){
-          $('inputCandName').focus();
-          $('inputCandName').placeholder="Enter your Google email (e.g. user@gmail.com)";
-        }
-      });
-      return;
-    }catch(_) {}
-  }
-  const cur=$('inputCandName').value.trim();
-  if(cur){
-    submitQuickProfile();
-  }else{
-    $('inputCandName').focus();
-    $('inputCandName').placeholder="Enter your Google email (e.g. user@gmail.com)";
-    const bTxt=$('btnModalGoogle').querySelector('span');
-    if(bTxt){
-      const orig=bTxt.textContent;
-      bTxt.textContent="Type your Google email below ⬇";
-      setTimeout(()=>{bTxt.textContent=orig;},2800);
-    }
-  }
+  triggerGoogleOrEmailAuth();
 };
 
 $('inputCandName').addEventListener('keydown',(e)=>{
@@ -1821,15 +1868,16 @@ $('inputCandName').addEventListener('keydown',(e)=>{
 $('btnQuickProfileSubmit').onclick=()=>submitQuickProfile();
 
 window.addEventListener('load',()=>{
+  try{localStorage.removeItem('speaksense_guest_dismissed');}catch(_){}
   ensureSessionToken().then(()=>{
     initGoogleAuth();
     loadHistory();
   });
-  // Auto-show sign-in modal on first visit if not signed in
+  // Auto-show sign-in modal whenever unauthenticated
   if(!currentUser || !currentUser.id){
-    const dismissed=localStorage.getItem('speaksense_guest_dismissed');
-    if(!dismissed){
-      setTimeout(()=>openQuickAuthModal(), 400);
+    const sessionGuest=sessionStorage.getItem('speaksense_guest_session');
+    if(!sessionGuest){
+      setTimeout(()=>openQuickAuthModal(), 300);
     }
   }
 });
