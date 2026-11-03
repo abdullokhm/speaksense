@@ -711,11 +711,14 @@ async def handle_auth_google(request):
         row = c.fetchone()
         conn.close()
 
+        if not avatar and name:
+            avatar = f"https://api.dicebear.com/7.x/initials/svg?seed={name}&backgroundColor=2b3fd6&textColor=ffffff"
+
         user = {
             "id": row[0],
             "email": row[1] or "",
             "name": row[2] or "Candidate",
-            "avatar": row[3] or "",
+            "avatar": row[3] or avatar,
             "created_at": str(row[4])
         }
         return web.json_response({"ok": True, "user": user})
@@ -925,6 +928,11 @@ async def app_cleanup_ctx(app):
     yield
     await app["http"].close()
 
+async def handle_config(request):
+    return web.json_response({
+        "google_client_id": os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    })
+
 def create_app():
     app = web.Application()
     app.cleanup_ctx.append(app_cleanup_ctx)
@@ -948,6 +956,7 @@ def create_app():
     app.router.add_get("/index.html", handle_index)
     app.router.add_get("/ad", handle_ad)
     app.router.add_get("/ad.html", handle_ad)
+    app.router.add_get("/api/config", handle_config)
     app.router.add_get("/api/tts", handle_tts)
     app.router.add_post("/api/tts", handle_tts)
     app.router.add_post("/api/comprehend", handle_comprehend)

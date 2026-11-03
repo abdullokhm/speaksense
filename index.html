@@ -674,18 +674,30 @@ async function handleGoogleCredentialResponse(response){
   }
 }
 
-function initGoogleAuth(){
+async function initGoogleAuth(){
   updateAuthUI();
-  if(window.google&&google.accounts&&google.accounts.id){
+  try{
+    const res=await fetch('/api/config');
+    if(res.ok){
+      const cfg=await res.json();
+      if(cfg.google_client_id)window.GOOGLE_CLIENT_ID=cfg.google_client_id;
+    }
+  }catch(_){}
+
+  if(window.GOOGLE_CLIENT_ID&&window.google&&google.accounts&&google.accounts.id){
     try{
       google.accounts.id.initialize({
-        client_id:window.GOOGLE_CLIENT_ID||'1088661642278-speaksense.apps.googleusercontent.com',
+        client_id:window.GOOGLE_CLIENT_ID,
         callback:handleGoogleCredentialResponse,
         auto_select:false,
         cancel_on_tap_outside:true
       });
       const cnt=document.getElementById('gsiContainer');
-      if(cnt)google.accounts.id.renderButton(cnt,{theme:'outline',size:'large',width:'320'});
+      if(cnt){
+        cnt.style.display='flex';
+        if($('btnModalGoogle'))$('btnModalGoogle').style.display='none';
+        google.accounts.id.renderButton(cnt,{theme:'outline',size:'large',width:'320'});
+      }
     }catch(e){
       console.warn("GIS initialization notice:",e);
     }
@@ -1664,30 +1676,70 @@ $('btnLogout').onclick=()=>{
   loadHistory();
 };
 
-$('btnModalGoogle').onclick=()=>{
-  if(window.google&&google.accounts&&google.accounts.id){
-    try{
-      google.accounts.id.prompt();
-      return;
-    }catch(_) {}
-  }
-  $('inputCandName').focus();
-};
-
-$('btnQuickProfileSubmit').onclick=async ()=>{
+async function submitQuickProfile(){
   const val=$('inputCandName').value.trim();
-  const name=val||'Candidate';
-  const email=val.includes('@')?val:`${val.toLowerCase().replace(/\s+/g,'.')}@speaksense.cloud`;
+  if(!val){
+    $('inputCandName').focus();
+    $('inputCandName').placeholder="Please enter your email or name first";
+    return;
+  }
+  const isEmail=val.includes('@');
+  const name=isEmail?val.split('@')[0]:val;
+  const email=isEmail?val:`${val.toLowerCase().replace(/[^a-z0-9]/g,'.')}@speaksense.cloud`;
+  const avatar=`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=2b3fd6&textColor=ffffff`;
+
+  const btn=$('btnQuickProfileSubmit');
+  btn.disabled=true;
+  btn.textContent="Signing in…";
   try{
-    const res=await post('/api/auth/google',{name,email});
+    const res=await post('/api/auth/google',{name,email,avatar});
     if(res&&res.user){
       await handleCredentialSuccess(res.user);
     }
   }catch(e){
-    const mockUser={id:`usr_${Date.now().toString(36)}`,name,email,avatar:''};
+    const mockUser={id:`usr_${Date.now().toString(36)}`,name,email,avatar};
     await handleCredentialSuccess(mockUser);
+  }finally{
+    btn.disabled=false;
+    btn.textContent="Create account & save progress";
+  }
+}
+
+$('btnModalGoogle').onclick=()=>{
+  if(window.GOOGLE_CLIENT_ID&&window.google&&google.accounts&&google.accounts.id){
+    try{
+      google.accounts.id.prompt((notification)=>{
+        if(notification.isNotDisplayed()||notification.isSkippedMoment()){
+          $('inputCandName').focus();
+          $('inputCandName').placeholder="Enter your Google email (e.g. user@gmail.com)";
+        }
+      });
+      return;
+    }catch(_) {}
+  }
+  const cur=$('inputCandName').value.trim();
+  if(cur){
+    submitQuickProfile();
+  }else{
+    $('inputCandName').focus();
+    $('inputCandName').placeholder="Enter your Google email (e.g. user@gmail.com)";
+    const bTxt=$('btnModalGoogle').querySelector('span');
+    if(bTxt){
+      const orig=bTxt.textContent;
+      bTxt.textContent="Type your Google email below ⬇";
+      setTimeout(()=>{bTxt.textContent=orig;},2800);
+    }
   }
 };
+
+$('inputCandName').addEventListener('keydown',(e)=>{
+  if(e.key==='Enter'){
+    e.preventDefault();
+    submitQuickProfile();
+  }
+});
+
+$('btnQuickProfileSubmit').onclick=()=>submitQuickProfile();
 
 window.addEventListener('load',()=>{
   initGoogleAuth();
