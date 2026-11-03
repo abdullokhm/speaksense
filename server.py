@@ -141,6 +141,19 @@ def get_env_gemini_key():
                 pass
     return os.environ.get("GEMINI_API_KEY", "").strip()
 
+def get_env_google_client_id():
+    for env_path in [os.path.expanduser("~/.env"), os.path.join(os.path.dirname(__file__), ".env")]:
+        if os.path.exists(env_path):
+            try:
+                with open(env_path, "r") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith("GOOGLE_CLIENT_ID="):
+                            return line.split("=", 1)[1].strip().strip('"').strip("'")
+            except Exception:
+                pass
+    return os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+
 def prune_cache_if_needed(max_files=250):
     try:
         files = [os.path.join(CACHE_DIR, f) for f in os.listdir(CACHE_DIR) if f.endswith(".mp3")]
@@ -1095,7 +1108,7 @@ async def app_cleanup_ctx(app):
 
 async def handle_config(request):
     return web.json_response({
-        "google_client_id": os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+        "google_client_id": get_env_google_client_id()
     })
 
 def create_app():

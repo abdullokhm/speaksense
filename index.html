@@ -496,31 +496,39 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
  </article>
 </main>
 
-<!-- Welcome Auth / Google Sign-in Modal (shows on first visit) -->
+<!-- Welcome Auth / Google Sign-in Modal -->
 <div class="modal-overlay" id="quickAuthModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
  <div class="modal-card">
   <button class="modal-close" id="btnModalClose" type="button" aria-label="Close dialog">&times;</button>
   <div class="modal-brand"><i></i>SpeakSense</div>
-  <h3 id="modalTitle">Welcome to SpeakSense</h3>
-  <p>Sign in to save your practice scores, CEFR profiles, and candidate voice recordings across devices. Or try as a guest first.</p>
-  <div style="display:flex;flex-direction:column;gap:12px;">
-   <button class="btn-g-modal" id="btnModalGoogle" type="button">
-    <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-    <span>Continue with Google</span>
-   </button>
-   <div id="gsiContainer" style="display:none;"></div>
+  <h3 id="modalTitle">Sign in to SpeakSense</h3>
+  <p>Save your practice scores, CEFR progress, and full voice recordings across devices with your Google account.</p>
+
+  <div style="display:flex;flex-direction:column;gap:14px;">
+   <!-- Official Google Sign-In Container (rendered directly by Google Identity Services) -->
+   <div id="gsiContainerWrap" style="display:none;flex-direction:column;align-items:center;gap:8px;padding:8px 0;">
+    <div id="gsiContainer"></div>
+    <div style="font-size:12px;color:var(--ink3);">Official Google Identity Verification</div>
+   </div>
+
+   <!-- Google OAuth Setup Notice if Client ID is not configured -->
+   <div id="gsiSetupNotice" style="display:none;background:#f8fafc;border:1px solid var(--line2);border-radius:12px;padding:16px;">
+    <div style="font-weight:600;font-size:13.5px;color:var(--ink);margin-bottom:6px;">Google Sign-In Configuration</div>
+    <p style="font-size:12.5px;color:var(--ink2);line-height:1.45;margin-bottom:12px;">
+     To enable real Google Sign-In with official Google popups, paste your Google Cloud OAuth Client ID below (or set <code>GOOGLE_CLIENT_ID</code> in Render):
+    </p>
+    <div class="f" style="margin-bottom:10px;">
+     <input id="inputGoogleClientId" type="text" placeholder="e.g. 1234567890-xxx.apps.googleusercontent.com" style="font-size:12px;padding:9px 12px;">
+    </div>
+    <button class="btn p" id="btnSaveClientId" type="button" style="width:100%;padding:9px;font-size:13px;">Save & Activate Google Sign-In</button>
+   </div>
+
    <div class="modal-divider">
     <hr>
-    <span>or email sign in</span>
+    <span>or</span>
    </div>
-   <div class="f">
-    <label for="inputCandName">Your email or name</label>
-    <input id="inputCandName" type="text" placeholder="e.g. alex@gmail.com or Alex Mercer">
-   </div>
-   <button class="btn p" id="btnQuickProfileSubmit" type="button" style="width:100%;padding:11px;">Continue & save progress</button>
-   <div style="text-align:center;margin-top:4px;">
-    <button class="btn-guest-link" id="btnSkipAuth" type="button">Skip for now — try as guest</button>
-   </div>
+
+   <button class="btn s" id="btnSkipAuth" type="button" style="width:100%;padding:11px;">Continue as Guest (Full practice access)</button>
   </div>
  </div>
 </div>
@@ -689,6 +697,17 @@ async function initGoogleAuth(){
     }
   }catch(_){}
 
+  if(!window.GOOGLE_CLIENT_ID){
+    try{
+      const localCid=localStorage.getItem('speaksense_google_client_id');
+      if(localCid)window.GOOGLE_CLIENT_ID=localCid;
+    }catch(_){}
+  }
+
+  const wrap=$('gsiContainerWrap');
+  const cnt=$('gsiContainer');
+  const setupNotice=$('gsiSetupNotice');
+
   if(window.GOOGLE_CLIENT_ID&&window.google&&google.accounts&&google.accounts.id){
     try{
       google.accounts.id.initialize({
@@ -697,16 +716,26 @@ async function initGoogleAuth(){
         auto_select:false,
         cancel_on_tap_outside:true
       });
-      const cnt=document.getElementById('gsiContainer');
-      if(cnt){
-        cnt.style.display='flex';
-        if($('btnModalGoogle'))$('btnModalGoogle').style.display='none';
-        google.accounts.id.renderButton(cnt,{theme:'outline',size:'large',width:'320'});
+      if(wrap&&cnt){
+        wrap.style.display='flex';
+        if(setupNotice)setupNotice.style.display='none';
+        cnt.innerHTML='';
+        google.accounts.id.renderButton(cnt,{
+          theme:'filled_blue',
+          size:'large',
+          width:340,
+          text:'continue_with',
+          shape:'rectangular'
+        });
       }
+      return;
     }catch(e){
-      console.warn("GIS initialization notice:",e);
+      console.warn("GIS initialization error:",e);
     }
   }
+
+  if(wrap)wrap.style.display='none';
+  if(setupNotice)setupNotice.style.display='block';
 }
 
 function openQuickAuthModal(){
@@ -1719,41 +1748,12 @@ async function loadHistory(){
   }).join('');
 }
 
-function promptEmailLogin(){
-  openQuickAuthModal();
-  const inp=$('inputCandName');
-  if(inp){
-    inp.focus();
-    inp.classList.add('input-pulse');
-    setTimeout(()=>inp.classList.remove('input-pulse'),2200);
-    inp.placeholder="Enter your Google email (e.g. user@gmail.com)";
-  }
-  const bTxt=$('btnModalGoogle')?$('btnModalGoogle').querySelector('span'):null;
-  if(bTxt){
-    const orig=bTxt.textContent;
-    bTxt.textContent="Enter your email below ⬇";
-    setTimeout(()=>{bTxt.textContent=orig;},3000);
-  }
-}
-
-function triggerGoogleOrEmailAuth(){
-  openQuickAuthModal();
-  if(window.GOOGLE_CLIENT_ID&&window.google&&google.accounts&&google.accounts.id){
-    try{
-      google.accounts.id.prompt((notification)=>{
-        if(!notification||notification.isNotDisplayed()||notification.isSkippedMoment()){
-          promptEmailLogin();
-        }
-      });
-      return;
-    }catch(_){}
-  }
-  promptEmailLogin();
-}
-
 // Wire Auth Modal buttons
 $('btnGoogleLogin').onclick=()=>{
-  triggerGoogleOrEmailAuth();
+  openQuickAuthModal();
+  if(window.GOOGLE_CLIENT_ID&&window.google&&google.accounts&&google.accounts.id){
+    try{google.accounts.id.prompt();}catch(_){}
+  }
 };
 $('btnRepSync').onclick=openQuickAuthModal;
 $('btnModalClose').onclick=closeQuickAuthModal;
@@ -1772,6 +1772,20 @@ $('btnSkipAuth').onclick=()=>{
   closeQuickAuthModal();
   try{sessionStorage.setItem('speaksense_guest_session','1');}catch(_){}
 };
+
+// Client ID setup button
+if($('btnSaveClientId')){
+  $('btnSaveClientId').onclick=()=>{
+    const val=$('inputGoogleClientId').value.trim();
+    if(!val){
+      $('inputGoogleClientId').focus();
+      return;
+    }
+    localStorage.setItem('speaksense_google_client_id',val);
+    window.GOOGLE_CLIENT_ID=val;
+    initGoogleAuth();
+  };
+}
 
 $('btnLogout').onclick=()=>{
   currentUser=null;
@@ -1824,48 +1838,6 @@ async function ensureSessionToken(){
     }catch(_){}
   }
 }
-
-async function submitQuickProfile(){
-  const val=$('inputCandName').value.trim();
-  if(!val){
-    $('inputCandName').focus();
-    $('inputCandName').placeholder="Please enter your email or name first";
-    return;
-  }
-  const isEmail=val.includes('@');
-  const name=isEmail?val.split('@')[0]:val;
-  const email=isEmail?val:`${val.toLowerCase().replace(/[^a-z0-9]/g,'.')}@speaksense.cloud`;
-  const avatar=`https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=2b3fd6&textColor=ffffff`;
-
-  const btn=$('btnQuickProfileSubmit');
-  btn.disabled=true;
-  btn.textContent="Signing in…";
-  try{
-    const res=await post('/api/auth/google',{name,email,avatar});
-    if(res&&res.user){
-      await handleCredentialSuccess(res.user);
-    }
-  }catch(e){
-    const mockUser={id:`usr_${Date.now().toString(36)}`,name,email,avatar};
-    await handleCredentialSuccess(mockUser);
-  }finally{
-    btn.disabled=false;
-    btn.textContent="Create account & save progress";
-  }
-}
-
-$('btnModalGoogle').onclick=()=>{
-  triggerGoogleOrEmailAuth();
-};
-
-$('inputCandName').addEventListener('keydown',(e)=>{
-  if(e.key==='Enter'){
-    e.preventDefault();
-    submitQuickProfile();
-  }
-});
-
-$('btnQuickProfileSubmit').onclick=()=>submitQuickProfile();
 
 window.addEventListener('load',()=>{
   try{localStorage.removeItem('speaksense_guest_dismissed');}catch(_){}
