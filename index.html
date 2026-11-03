@@ -235,13 +235,26 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 .report-sync-box.synced .report-sync-txt p{color:#166534}
 
 /* Quick Sign-In Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(20,23,28,.45);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-overlay{position:fixed;inset:0;background:rgba(20,23,28,.65);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;animation:fadeIn .2s ease}
 .modal-overlay.open{display:flex}
-.modal-card{background:#fff;border-radius:16px;width:100%;max-width:400px;padding:28px 24px;box-shadow:0 24px 60px -12px rgba(20,23,28,.28);border:1px solid var(--line2);position:relative}
-.modal-card h3{font-size:20px;font-weight:600;letter-spacing:-.02em;margin-bottom:6px}
-.modal-card p{font-size:13.5px;color:var(--ink2);line-height:1.45;margin-bottom:18px}
-.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;font-size:22px;line-height:1;color:var(--ink3);cursor:pointer}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-card{background:#fff;border-radius:20px;width:100%;max-width:440px;padding:32px 28px;box-shadow:0 28px 70px -12px rgba(20,23,28,.35);border:1px solid var(--line2);position:relative;animation:slideUp .25s var(--ease)}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--ink);margin-bottom:14px}
+.modal-brand i{width:18px;height:18px;border-radius:50%;border:2px solid var(--ink);position:relative}
+.modal-brand i::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--blue)}
+.modal-card h3{font-size:22px;font-weight:700;letter-spacing:-.03em;margin-bottom:6px;color:var(--ink)}
+.modal-card p{font-size:14px;color:var(--ink2);line-height:1.45;margin-bottom:20px}
+.modal-close{position:absolute;top:18px;right:18px;background:none;border:none;font-size:24px;line-height:1;color:var(--ink3);cursor:pointer;padding:4px}
 .modal-close:hover{color:var(--ink)}
+.btn-g-modal{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;background:#fff;border:1.5px solid var(--line2);border-radius:12px;padding:12px 18px;font-size:15px;font-weight:600;color:var(--ink);cursor:pointer;transition:.15s;box-shadow:0 2px 4px rgba(20,23,28,.04)}
+.btn-g-modal:hover{border-color:var(--ink);box-shadow:0 4px 12px rgba(20,23,28,.1);background:#fafbfc}
+.btn-g-modal svg{width:20px;height:20px;flex-shrink:0}
+.modal-divider{position:relative;text-align:center;margin:18px 0 14px}
+.modal-divider hr{border:0;border-top:1px solid var(--line)}
+.modal-divider span{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:0 10px;font-size:12px;color:var(--ink3);font-weight:500}
+.btn-guest-link{background:none;border:none;color:var(--ink3);font-size:13px;cursor:pointer;padding:6px 10px;border-radius:6px;transition:.15s;text-decoration:underline;text-underline-offset:3px}
+.btn-guest-link:hover{color:var(--ink)}
 
 @media(max-width:860px){
   .setup{grid-template-columns:1fr}
@@ -481,27 +494,31 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
  </article>
 </main>
 
-<!-- Quick Auth / Google Sign-in Modal -->
+<!-- Welcome Auth / Google Sign-in Modal (shows on first visit) -->
 <div class="modal-overlay" id="quickAuthModal">
  <div class="modal-card">
   <button class="modal-close" id="btnModalClose" type="button">&times;</button>
-  <h3>Sign in to SpeakSense</h3>
-  <p>Save all your practice scores, CEFR profiles, and candidate voice recordings permanently to the cloud.</p>
-  <div style="display:flex;flex-direction:column;gap:14px;">
-   <button class="btn-g-auth" id="btnModalGoogle" type="button" style="justify-content:center;padding:10px 16px;border-radius:10px;font-size:14px;">
+  <div class="modal-brand"><i></i>SpeakSense</div>
+  <h3>Welcome to SpeakSense</h3>
+  <p>Sign in to save your practice scores, CEFR profiles, and candidate voice recordings across devices. Or try as a guest first.</p>
+  <div style="display:flex;flex-direction:column;gap:12px;">
+   <button class="btn-g-modal" id="btnModalGoogle" type="button">
     <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
     <span>Continue with Google</span>
    </button>
    <div id="gsiContainer" style="display:none;"></div>
-   <div style="position:relative;text-align:center;margin:4px 0;">
-    <hr style="border:0;border-top:1px solid var(--line2);">
-    <span style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;padding:0 8px;font-size:11px;color:var(--ink3);font-weight:600;">or fast candidate profile</span>
+   <div class="modal-divider">
+    <hr>
+    <span>or quick profile</span>
    </div>
    <div class="f">
     <label for="inputCandName">Your name or email</label>
     <input id="inputCandName" type="text" placeholder="e.g. Alex Mercer or alex@gmail.com">
    </div>
-   <button class="btn p" id="btnQuickProfileSubmit" type="button" style="width:100%;padding:10px;">Save & Cloud Sync</button>
+   <button class="btn p" id="btnQuickProfileSubmit" type="button" style="width:100%;padding:11px;">Create account & save progress</button>
+   <div style="text-align:center;margin-top:4px;">
+    <button class="btn-guest-link" id="btnSkipAuth" type="button">Skip for now — try as guest</button>
+   </div>
   </div>
  </div>
 </div>
@@ -1632,9 +1649,16 @@ $('btnRepSync').onclick=openQuickAuthModal;
 $('btnModalClose').onclick=closeQuickAuthModal;
 $('quickAuthModal').onclick=(e)=>{if(e.target===$('quickAuthModal'))closeQuickAuthModal();};
 
+// Skip / Guest button
+$('btnSkipAuth').onclick=()=>{
+  closeQuickAuthModal();
+  try{localStorage.setItem('speaksense_guest_dismissed','1');}catch(_){}
+};
+
 $('btnLogout').onclick=()=>{
   currentUser=null;
   localStorage.removeItem('speaksense_user');
+  try{localStorage.removeItem('speaksense_guest_dismissed');}catch(_){}
   updateAuthUI();
   updateReportSyncUI();
   loadHistory();
@@ -1668,6 +1692,13 @@ $('btnQuickProfileSubmit').onclick=async ()=>{
 window.addEventListener('load',()=>{
   initGoogleAuth();
   loadHistory();
+  // Auto-show sign-in modal on first visit if not signed in
+  if(!currentUser || !currentUser.id){
+    const dismissed=localStorage.getItem('speaksense_guest_dismissed');
+    if(!dismissed){
+      setTimeout(()=>openQuickAuthModal(), 400);
+    }
+  }
 });
 if(!SR){$('warn').classList.add('on');$('btnStart').disabled=true}
 </script>
