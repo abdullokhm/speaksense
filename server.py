@@ -152,7 +152,7 @@ def get_env_google_client_id():
                             return line.split("=", 1)[1].strip().strip('"').strip("'")
             except Exception:
                 pass
-    return os.environ.get("GOOGLE_CLIENT_ID", "").strip()
+    return os.environ.get("GOOGLE_CLIENT_ID", "145011314650-61ugulq2etvddocsrknc0m2dk9lsdnqg.apps.googleusercontent.com").strip()
 
 def prune_cache_if_needed(max_files=250):
     try:
@@ -825,6 +825,10 @@ async def handle_auth_google(request):
             async with session.get(tokeninfo_url, timeout=ClientTimeout(total=5.0)) as resp:
                 if resp.status == 200:
                     info = await resp.json()
+                    token_aud = str(info.get("aud", "")).strip()
+                    expected_aud = get_env_google_client_id()
+                    if expected_aud and token_aud != expected_aud:
+                        return web.json_response({"error": "Google token audience mismatch"}, status=401)
                     user_id = str(info.get("sub", "")).strip()
                     email = str(info.get("email", "")).strip()
                     name = str(info.get("name", "")).strip() or (email.split("@")[0] if email else "Candidate")

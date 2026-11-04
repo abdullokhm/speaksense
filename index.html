@@ -284,6 +284,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
    <div style="display:flex;justify-content:space-between;align-items:center;width:100%;flex-wrap:wrap;gap:12px;">
     <div class="brand"><i></i>SpeakSense</div>
     <div id="authSlot" class="auth-slot">
+     <div id="headerGsiContainer"></div>
      <button class="btn-g-auth" id="btnGoogleLogin" type="button">
       <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
       <span>Continue with Google</span>
@@ -636,9 +637,14 @@ try{
 }catch(_){}
 
 function updateAuthUI(){
+  const hGsi=$('headerGsiContainer');
+  const bG=$('btnGoogleLogin');
+  const uPill=$('userPill');
+
   if(currentUser&&currentUser.id){
-    $('btnGoogleLogin').style.display='none';
-    $('userPill').style.display='inline-flex';
+    if(bG)bG.style.display='none';
+    if(hGsi)hGsi.style.display='none';
+    if(uPill)uPill.style.display='inline-flex';
     $('uName').textContent=currentUser.name||(currentUser.email?currentUser.email.split('@')[0]:'Candidate');
     if(currentUser.avatar){
       $('uAvatar').src=currentUser.avatar;
@@ -647,8 +653,13 @@ function updateAuthUI(){
       $('uAvatar').src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234b5260'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E";
     }
   }else{
-    $('btnGoogleLogin').style.display='inline-flex';
-    $('userPill').style.display='none';
+    if(uPill)uPill.style.display='none';
+    if(hGsi&&hGsi.children.length>0){
+      hGsi.style.display='block';
+      if(bG)bG.style.display='none';
+    }else if(bG){
+      bG.style.display='inline-flex';
+    }
   }
 }
 
@@ -687,6 +698,8 @@ async function handleGoogleCredentialResponse(response){
   }
 }
 
+window.GOOGLE_CLIENT_ID = '145011314650-61ugulq2etvddocsrknc0m2dk9lsdnqg.apps.googleusercontent.com';
+
 async function initGoogleAuth(){
   updateAuthUI();
   try{
@@ -697,15 +710,9 @@ async function initGoogleAuth(){
     }
   }catch(_){}
 
-  if(!window.GOOGLE_CLIENT_ID){
-    try{
-      const localCid=localStorage.getItem('speaksense_google_client_id');
-      if(localCid)window.GOOGLE_CLIENT_ID=localCid;
-    }catch(_){}
-  }
-
   const wrap=$('gsiContainerWrap');
   const cnt=$('gsiContainer');
+  const hGsi=$('headerGsiContainer');
   const setupNotice=$('gsiSetupNotice');
 
   if(window.GOOGLE_CLIENT_ID&&window.google&&google.accounts&&google.accounts.id){
@@ -727,6 +734,17 @@ async function initGoogleAuth(){
           text:'continue_with',
           shape:'rectangular'
         });
+      }
+      if(hGsi){
+        hGsi.innerHTML='';
+        google.accounts.id.renderButton(hGsi,{
+          theme:'outline',
+          size:'medium',
+          text:'signin_with',
+          shape:'pill'
+        });
+        if($('btnGoogleLogin'))$('btnGoogleLogin').style.display='none';
+        hGsi.style.display='block';
       }
       return;
     }catch(e){

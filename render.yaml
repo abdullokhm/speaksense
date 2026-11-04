@@ -9,3 +9,5 @@ services:
         value: 10000
       - key: PYTHON_VERSION
         value: "3.11.0"
+      - key: GOOGLE_CLIENT_ID
+        value: "145011314650-61ugulq2etvddocsrknc0m2dk9lsdnqg.apps.googleusercontent.com"
