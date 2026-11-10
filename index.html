@@ -102,6 +102,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--blue);outline-o
 [data-phase=speaking] .wave i,[data-phase=listening] .wave i{animation:w var(--d) ease-in-out infinite alternate;transform:scaleY(var(--h))}
 [data-phase=speaking] .wave i{background:var(--blue)}
 [data-phase=listening] .wave i{background:var(--green)}
+.wave.live-meter i{animation:none!important;transition:transform .06s linear}
 @keyframes w{from{transform:scaleY(.12)}to{transform:scaleY(var(--h))}}
 .say{width:100%;max-width:640px;border-top:1px solid var(--line2);padding-top:16px;min-height:96px}
 .say small{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--ink3);margin-bottom:6px}
@@ -620,12 +621,18 @@ const S={
 let rec=null,silence=null,silenceTimer=null,clock=null,cuePrepTimer=null;
 let sid=0;
 let micErrCount=0;
+let recActive=false;
+let accumulatedFinals='';
 
-// MediaRecorder candidate audio capture
+// MediaRecorder candidate audio capture + Live Mic Meter
 let audioStream=null;
 let mediaRecorder=null;
 let recordedChunks=[];
+let activeMimeType='audio/webm';
 let activePlaybackAudio=null;
+let micAudioCtx=null;
+let micAnalyser=null;
+let micMeterRaf=null;
 
 // Authentication & User State
 let currentUser=null;
@@ -768,9 +775,15 @@ function closeQuickAuthModal(){
 }
 
 async function initUserAudioStream(){
-  if(audioStream)return audioStream;
+  if(audioStream&&audioStream.getAudioTracks().some(t=>t.readyState==='live')){
+    audioStream.getAudioTracks().forEach(t=>t.enabled=!S.muted);
+    return audioStream;
+  }
   try{
-    audioStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    audioStream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
+    });
+    setupMicMeter(audioStream);
     return audioStream;
   }catch(e){
     console.warn("Microphone stream unavailable:",e);
@@ -778,56 +791,167 @@ async function initUserAudioStream(){
   }
 }
 
-function startAudioRecording(){
-  recordedChunks=[];
-  if(!audioStream)return;
+function setupMicMeter(stream){
   try{
-    const mime=MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':
-               MediaRecorder.isTypeSupported('audio/mp4')?'audio/mp4':'';
-    mediaRecorder=mime?new MediaRecorder(audioStream,{mimeType:mime}):new MediaRecorder(audioStream);
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return;
+    if(micAudioCtx){try{micAudioCtx.close();}catch(_){}}
+    micAudioCtx=new AC();
+    if(micAudioCtx.state==='suspended')micAudioCtx.resume().catch(()=>{});
+    const src=micAudioCtx.createMediaStreamSource(stream);
+    micAnalyser=micAudioCtx.createAnalyser();
+    micAnalyser.fftSize=64;
+    src.connect(micAnalyser);
+  }catch(e){
+    console.warn("Audio meter init notice:",e);
+  }
+}
+
+function startMicMeter(){
+  stopMicMeter();
+  const waveEl=$('wave');
+  if(!micAnalyser||!waveEl)return;
+  if(micAudioCtx&&micAudioCtx.state==='suspended')micAudioCtx.resume().catch(()=>{});
+  waveEl.classList.add('live-meter');
+  const bars=[...waveEl.children];
+  const data=new Uint8Array(micAnalyser.frequencyBinCount);
+  const tick=()=>{
+    if(!S.listening||S.muted||S.speaking||!S.live){
+      stopMicMeter();
+      return;
+    }
+    micAnalyser.getByteFrequencyData(data);
+    for(let i=0;i<bars.length;i++){
+      const v=data[i%data.length]/255;
+      const scale=Math.max(0.12,Math.min(1.0,0.12+v*1.4));
+      bars[i].style.transform=`scaleY(${scale.toFixed(2)})`;
+    }
+    micMeterRaf=requestAnimationFrame(tick);
+  };
+  micMeterRaf=requestAnimationFrame(tick);
+}
+
+function stopMicMeter(){
+  if(micMeterRaf){cancelAnimationFrame(micMeterRaf);micMeterRaf=null;}
+  const waveEl=$('wave');
+  if(waveEl){
+    waveEl.classList.remove('live-meter');
+    [...waveEl.children].forEach(b=>b.style.transform='');
+  }
+}
+
+async function startAudioRecording(){
+  recordedChunks=[];
+  const stream=await initUserAudioStream();
+  if(!stream)return;
+  if(mediaRecorder&&mediaRecorder.state!=='inactive'){
+    mediaRecorder.onstop=null;
+    try{mediaRecorder.stop();}catch(_){}
+  }
+  try{
+    const candidates=['audio/webm;codecs=opus','audio/webm','audio/mp4','audio/ogg'];
+    let mime='';
+    if(typeof MediaRecorder!=='undefined'&&MediaRecorder.isTypeSupported){
+      mime=candidates.find(c=>MediaRecorder.isTypeSupported(c))||'';
+    }
+    activeMimeType=mime||'audio/webm';
+    mediaRecorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
     mediaRecorder.ondataavailable=e=>{
       if(e.data&&e.data.size>0)recordedChunks.push(e.data);
     };
-    mediaRecorder.start(200);
+    // Omit timeslice so Safari/WebKit produces a clean single valid MP4 container
+    mediaRecorder.start();
+    startMicMeter();
   }catch(e){
     console.warn("MediaRecorder start notice:",e);
   }
 }
 
+async function uploadAudioWithRetry(blob){
+  const doUpload=async ()=>{
+    const headers={'Content-Type':(blob.type||activeMimeType||'audio/webm')};
+    const token=localStorage.getItem('speaksense_token');
+    if(token)headers['Authorization']=`Bearer ${token}`;
+    return fetch('/api/recordings/upload',{method:'POST',headers,body:blob});
+  };
+  let res=await doUpload();
+  if(res.status===401){
+    await ensureSessionToken(true);
+    res=await doUpload();
+  }
+  if(res.ok){
+    const j=await res.json();
+    return j.url||null;
+  }
+  return null;
+}
+
+async function transcribeAudioBlob(blob){
+  if(!blob||blob.size<300)return '';
+  try{
+    const headers={'Content-Type':(blob.type||activeMimeType||'audio/webm')};
+    const token=localStorage.getItem('speaksense_token');
+    if(token)headers['Authorization']=`Bearer ${token}`;
+    const c=new AbortController(),to=setTimeout(()=>c.abort(),16000);
+    const res=await fetch('/api/transcribe',{method:'POST',headers,body:blob,signal:c.signal});
+    clearTimeout(to);
+    if(res.ok){
+      const j=await res.json();
+      return (j.transcript||'').trim();
+    }
+  }catch(err){
+    console.warn("Server audio transcription notice:",err);
+  }
+  return '';
+}
+
 function stopAudioRecording(){
+  stopMicMeter();
   return new Promise(resolve=>{
     if(!mediaRecorder||mediaRecorder.state==='inactive'){
-      resolve(null);
+      if(recordedChunks.length>0){
+        const blob=new Blob(recordedChunks,{type:recordedChunks[0]?.type||activeMimeType||'audio/webm'});
+        uploadAudioWithRetry(blob).then(url=>resolve({url,blob})).catch(()=>resolve({url:null,blob}));
+      }else{
+        resolve({url:null,blob:null});
+      }
       return;
     }
+    let done=false;
+    const guard=setTimeout(()=>{
+      if(!done){
+        done=true;
+        resolve({url:null,blob:null});
+      }
+    },4500);
+
     mediaRecorder.onstop=async ()=>{
+      if(done)return;
+      done=true;
+      clearTimeout(guard);
       if(recordedChunks.length>0){
         try{
-          const blob=new Blob(recordedChunks,{type:recordedChunks[0]?.type||'audio/webm'});
+          const blob=new Blob(recordedChunks,{type:recordedChunks[0]?.type||activeMimeType||'audio/webm'});
           let permUrl=null;
           try{
-            const headers={'Content-Type':blob.type||'audio/webm'};
-            const token=localStorage.getItem('speaksense_token');
-            if(token)headers['Authorization']=`Bearer ${token}`;
-            const res=await fetch('/api/recordings/upload',{
-              method:'POST',
-              headers,
-              body:blob
-            });
-            if(res.ok){
-              const j=await res.json();
-              if(j.url)permUrl=j.url;
-            }
+            permUrl=await uploadAudioWithRetry(blob);
           }catch(err){
             console.warn("Audio upload notice:",err);
           }
-          resolve(permUrl || URL.createObjectURL(blob));
-        }catch(_){resolve(null);}
+          resolve({url:permUrl,blob});
+        }catch(_){resolve({url:null,blob:null});}
       }else{
-        resolve(null);
+        resolve({url:null,blob:null});
       }
     };
-    try{mediaRecorder.stop();}catch(_){resolve(null);}
+    try{
+      if(typeof mediaRecorder.requestData==='function'&&mediaRecorder.state==='recording'){
+        try{mediaRecorder.requestData();}catch(_){}
+      }
+      mediaRecorder.stop();
+    }catch(_){
+      if(!done){done=true;clearTimeout(guard);resolve({url:null,blob:null});}
+    }
   });
 }
 
@@ -1046,6 +1170,8 @@ async function speak(text,done){
       await a.play();
     }catch(err){
       console.warn("Server TTS failed, falling back to browser speech synthesis:",err);
+      if(safetyTimer)clearTimeout(safetyTimer);
+      safetyTimer=setTimeout(finishSpeak,25000);
       speakWithBrowserSynth(text,finishSpeak);
     }
   };
@@ -1078,32 +1204,65 @@ function clearSilence(){
   clearTimeout(silenceTimer);
   $('pauseCue').classList.remove('on');
 }
-function pauseMic(){clearSilence();try{rec&&rec.stop()}catch(_){}}
-function resumeMic(){if(S.listening&&!S.blocked&&!S.muted&&!S.speaking&&S.live&&rec){try{rec.start()}catch(_){}}}
+function pauseMic(){
+  clearSilence();
+  if(rec&&recActive){
+    try{rec.stop()}catch(_){}
+  }
+}
+
+function resumeMic(){
+  if(!S.listening||S.blocked||S.muted||S.speaking||!S.live||!rec)return;
+  if(recActive)return;
+  try{
+    rec.start();
+  }catch(err){
+    // Recognition may still be winding down from previous stop; retry briefly
+    setTimeout(()=>{
+      if(S.listening&&!S.blocked&&!S.muted&&!S.speaking&&S.live&&!recActive&&rec){
+        try{rec.start();}catch(_){}
+      }
+    },180);
+  }
+}
 
 function initRec(){
   if(!SR)return;
-  if(rec){try{rec.abort()}catch(_){}}
-  rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang="en-US";
+  if(rec){
+    rec.onend=null;rec.onerror=null;rec.onresult=null;rec.onstart=null;
+    try{rec.abort();}catch(_){}
+  }
+  recActive=false;
+  rec=new SR();
+  rec.continuous=true;
+  rec.interimResults=true;
+  rec.lang="en-US";
+
+  rec.onstart=()=>{
+    recActive=true;
+    micErrCount=0;
+  };
   
   rec.onresult=e=>{
     if(S.speaking||!S.listening)return;
     micErrCount=0;
     
-    let fullFin="";
+    let sessionFin="";
     let interim="";
     for(let i=0;i<e.results.length;i++){
       const r=e.results[i];
-      if(r.isFinal)fullFin+=r[0].transcript+" ";
+      if(r.isFinal)sessionFin+=r[0].transcript+" ";
       else interim+=r[0].transcript;
     }
-    S.fin=fullFin;
+    S.fin=(accumulatedFinals+" "+sessionFin).trim();
     S.int=interim;
-    const txt=(fullFin+interim).trim();
+    const txt=(S.fin+" "+interim).trim();
     if(!txt)return;
     
     $('sayTxt').textContent=txt;$('sayTxt').classList.remove('ph');
     countFillers(txt);
+    const liveWords=S.words+txt.split(/\s+/).filter(Boolean).length;
+    $('mWords').textContent=liveWords;
 
     // In Cue Card mode, user has a full 2-minute monologue; don't auto-submit prematurely on pauses
     if(S.format==='cuecard')return;
@@ -1127,16 +1286,30 @@ function initRec(){
   };
 
   rec.onerror=e=>{
-    console.debug("speech:",e.error);
-    micErrCount++;
-    if(e.error==='not-allowed'||e.error==='service-not-allowed'||micErrCount>=3){
-      S.blocked=true;pauseMic();
+    console.debug("speech event:",e.error);
+    // Ignore normal silence/abort events so pauses never kill the microphone
+    if(e.error==='no-speech'||e.error==='aborted')return;
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+      S.blocked=true;
+      pauseMic();
       if(S.listening)showBlocked();
+      return;
+    }
+    micErrCount++;
+    if(micErrCount>=4&&e.error==='audio-capture'){
+      // Note: Do NOT hide MediaRecorder if it is active; Gemini transcribe fallback still captures voice
+      console.warn("SpeechRecognition audio-capture conflict; server transcription fallback enabled.");
     }
   };
   
   rec.onend=()=>{
-    if(micErrCount<3)resumeMic();
+    recActive=false;
+    if(S.fin&&S.fin.trim()){
+      accumulatedFinals=S.fin.trim();
+    }
+    if(S.listening&&!S.blocked&&!S.muted&&!S.speaking&&S.live){
+      setTimeout(resumeMic,150);
+    }
   };
 }
 
@@ -1281,6 +1454,7 @@ function finishCuePrepAndSpeak(){
 function openCueFloor(){
   S.listening=true;
   S.fin=S.int="";
+  accumulatedFinals="";
   S.tFill=0;
   phase('listening','Your turn: speak for 1 to 2 minutes');
   $('sayTxt').textContent="Microphone is recording your long turn. Address each bullet point above…";
@@ -1328,12 +1502,25 @@ async function endCueTurn(text){
   S.listening=false;
   pauseMic();
   clearSilence();
-  phase('thinking','Examiner evaluating long turn…');
+  phase('thinking','Processing recording & evaluating long turn…');
 
-  const audioUrl=await stopAudioRecording();
+  const recRes=await stopAudioRecording();
+  const audioUrl=recRes?recRes.url:null;
+  const audioBlob=recRes?recRes.blob:null;
+
+  let finalTxt=(text||'').trim();
+  if((!finalTxt||finalTxt==='Candidate concluded long turn.')&&audioBlob&&audioBlob.size>300){
+    $('sayTxt').textContent="Transcribing your recorded voice…";
+    const t=await transcribeAudioBlob(audioBlob);
+    if(t)finalTxt=t;
+  }
+  if(!finalTxt)finalTxt="Candidate concluded long turn.";
+
+  $('sayTxt').textContent=finalTxt;
+  $('sayTxt').classList.remove('ph');
   S.hist.push({speaker:'ai',text:S.activeCueCard.topic});
-  S.hist.push({speaker:'user',text,audioUrl});
-  S.words+=text.split(/\s+/).filter(Boolean).length;
+  S.hist.push({speaker:'user',text:finalTxt,audioUrl});
+  S.words+=finalTxt.split(/\s+/).filter(Boolean).length;
 
   const closingMsg="Thank you. That was two minutes. Let us review your formal evaluation for Part 2.";
   speak(closingMsg,()=>{
@@ -1360,40 +1547,64 @@ function ask(text,closing){
 }
 
 function openFloor(){
-  S.listening=true;S.fin=S.int="";S.tFill=0;
+  S.listening=true;S.fin=S.int="";accumulatedFinals="";S.tFill=0;
   phase('listening','Your turn. Speak or tap Submit');
-  $('sayTxt').textContent=S.muted?"Mic is muted. Unmute to answer.":"Speak your answer… (or tap Submit Answer when done)";$('sayTxt').classList.add('ph');
+  $('sayTxt').textContent=S.muted?"Mic is muted. Unmute to answer.":"Speak your answer… (recording active — tap Submit when finished)";$('sayTxt').classList.add('ph');
   startAudioRecording();
   if(S.blocked)showBlocked();else resumeMic();
 }
 
 async function post(url,body,ms){
-  const c=new AbortController(),t=setTimeout(()=>c.abort(),ms||15000);
-  try{
-    const headers={'Content-Type':'application/json'};
-    const token=localStorage.getItem('speaksense_token');
-    if(token)headers['Authorization']=`Bearer ${token}`;
-    const r=await fetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:c.signal});
-    if(!r.ok)throw new Error(`HTTP ${r.status}`);
-    return await r.json();
-  }finally{clearTimeout(t)}
+  const run=async ()=>{
+    const c=new AbortController(),t=setTimeout(()=>c.abort(),ms||15000);
+    try{
+      const headers={'Content-Type':'application/json'};
+      const token=localStorage.getItem('speaksense_token');
+      if(token)headers['Authorization']=`Bearer ${token}`;
+      return await fetch(url,{method:'POST',headers,body:JSON.stringify(body),signal:c.signal});
+    }finally{clearTimeout(t)}
+  };
+  let r=await run();
+  if(r.status===401&&url!=='/api/auth/google'){
+    await ensureSessionToken(true);
+    r=await run();
+  }
+  if(!r.ok)throw new Error(`HTTP ${r.status}`);
+  return await r.json();
 }
 
 async function endTurn(text){
   const mySid=sid;
   S.listening=false;pauseMic();clearSilence();
-  S.lastTurnText=text;
-  phase('thinking','Examiner is listening & thinking…');
+  phase('thinking','Capturing & transcribing voice…');
   $('sayLbl').textContent="Recorded";
 
-  // Capture user audio blob URL
-  const audioUrl=await stopAudioRecording();
+  // Capture user audio blob and permanent upload URL
+  const recRes=await stopAudioRecording();
+  const audioUrl=recRes?recRes.url:null;
+  const audioBlob=recRes?recRes.blob:null;
+
+  let finalTxt=(text||'').trim();
+  if(!finalTxt&&audioBlob&&audioBlob.size>300){
+    $('sayTxt').textContent="Transcribing your recorded voice…";
+    $('sayTxt').classList.remove('ph');
+    const t=await transcribeAudioBlob(audioBlob);
+    if(t)finalTxt=t;
+  }
+  if(!finalTxt){
+    finalTxt="(Voice recorded — tap Restart or speak louder if blank)";
+  }
+
+  S.lastTurnText=finalTxt;
+  $('sayTxt').textContent=finalTxt;
+  $('sayTxt').classList.remove('ph');
+  phase('thinking','Examiner is listening & thinking…');
 
   const tg=$('target').value.trim(),tp=$('topic').value.trim();
 
   // Commit candidate answer with audio recording
-  S.hist.push({speaker:'user',text,audioUrl});
-  S.words+=text.split(/\s+/).filter(Boolean).length;
+  S.hist.push({speaker:'user',text:finalTxt,audioUrl});
+  S.words+=finalTxt.split(/\s+/).filter(Boolean).length;
   S.fill+=S.tFill;S.tFill=0;
   $('mWords').textContent=S.words;
   S.turn++;
@@ -1406,8 +1617,8 @@ async function endTurn(text){
 
   try{
     const d=await post('/api/comprehend',{
-      user_text:text,mode:S.track,turn_count:S.turn,history:S.hist,
-      message:text,persona:S.track,turn:S.turn,topic:tp,target:tg,difficulty:S.tone
+      user_text:finalTxt,mode:S.track,turn_count:S.turn,history:S.hist,
+      message:finalTxt,persona:S.track,turn:S.turn,topic:tp,target:tg,difficulty:S.tone
     },16000);
     
     if(mySid!==sid||!S.live)return;
@@ -1441,29 +1652,46 @@ $('btnRetryTurn').onclick=()=>{
 };
 
 $('bGo').onclick=()=>{
-  const t=S.blocked?($('sayTxt').classList.contains('ph')?'':$('sayTxt').textContent.trim()):(S.fin+S.int).trim();
+  if(!S.listening)return;
+  const typed=$('sayTxt').classList.contains('ph')?'':$('sayTxt').textContent.trim();
+  const t=S.blocked?typed:((S.fin+' '+S.int).trim()||typed);
+  const hasAudio=recordedChunks.length>0||(mediaRecorder&&mediaRecorder.state==='recording');
+  if(t.length===0&&!hasAudio)return;
   if(S.format==='cuecard'){
-    if(S.listening&&t.length>1)endCueTurn(t);
+    endCueTurn(t);
   }else{
-    if(S.listening&&t.length>1)endTurn(t);
+    endTurn(t);
   }
 };
 
 $('bRedo').onclick=()=>{
   if(!S.listening)return;
-  clearSilence();S.fin=S.int="";S.tFill=0;
+  clearSilence();S.fin=S.int="";accumulatedFinals="";S.tFill=0;
   $('sayTxt').textContent="Cleared. Speak again…";$('sayTxt').classList.add('ph');
   if(mediaRecorder&&mediaRecorder.state!=='inactive'){
+    mediaRecorder.onstop=null;
     try{mediaRecorder.stop();}catch(_){}
   }
   recordedChunks=[];
   startAudioRecording();
-  try{rec&&rec.abort()}catch(_){}
+  if(rec){
+    try{rec.abort();}catch(_){}
+  }
 };
 
 $('bMute').onclick=()=>{
   S.muted=!S.muted;$('bMute').setAttribute('aria-pressed',S.muted);$('bMute').textContent=S.muted?"Unmute mic":"Mute mic";
-  if(S.muted)pauseMic();else resumeMic();
+  if(audioStream){
+    audioStream.getAudioTracks().forEach(tr=>tr.enabled=!S.muted);
+  }
+  if(mediaRecorder){
+    try{
+      if(S.muted&&mediaRecorder.state==='recording'&&mediaRecorder.pause)mediaRecorder.pause();
+      else if(!S.muted&&mediaRecorder.state==='paused'&&mediaRecorder.resume)mediaRecorder.resume();
+    }catch(_){}
+  }
+  if(S.muted){pauseMic();stopMicMeter();}
+  else{resumeMic();startMicMeter();}
 };
 $('bEnd').onclick=()=>finish();
 
@@ -1490,12 +1718,13 @@ async function finish(isCueCard=false){
   sid++;
   clearInterval(clock);
   clearInterval(cuePrepTimer);
-  S.live=false;S.listening=false;stopAudio();S.speaking=false;pauseMic();clearSilence();
+  S.live=false;S.listening=false;stopAudio();S.speaking=false;pauseMic();clearSilence();stopMicMeter();
   if(audioStream){
     try{audioStream.getTracks().forEach(t=>t.stop());}catch(_){}
     audioStream=null;
   }
   if(mediaRecorder&&mediaRecorder.state!=='inactive'){
+    mediaRecorder.onstop=null;
     try{mediaRecorder.stop();}catch(_){}
   }
   $('hint').classList.remove('on');phase('idle');
@@ -1503,7 +1732,8 @@ async function finish(isCueCard=false){
   const ex=EX[S.track];
   $('repTitle').textContent=isCueCard?`${ex.name} — IELTS Part 2 (Long Turn)`:`${ex.name}, ${ex.track}`;
   $('repScore').textContent="…";$('repVerdict').textContent="Evaluating transcript and sustained discourse…";$('repVerdict').classList.add('pend');
-  ['F','L','R'].forEach(k=>{$('s'+k).textContent="–";$('b'+k).style.width=0});
+  const critCnt=$('critContainer');
+  if(critCnt)critCnt.innerHTML='<div><span>Scoring criteria…</span><span class="bar"><i style="width:0%"></i></span><b>–</b></div>';
   $('ups').innerHTML="";
 
   // Transcript with inline candidate audio playback
@@ -1844,14 +2074,21 @@ document.addEventListener('click',e=>{
   }
 });
 
-async function ensureSessionToken(){
+async function ensureSessionToken(force=false){
   let token=localStorage.getItem('speaksense_token');
-  if(!token){
+  if(!token||force){
     try{
-      const res=await post('/api/auth/google',{is_guest:true});
-      if(res&&res.token){
-        localStorage.setItem('speaksense_token',res.token);
-        if(!currentUser)currentUser=res.user;
+      const res=await fetch('/api/auth/google',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({is_guest:true})
+      });
+      if(res.ok){
+        const j=await res.json();
+        if(j&&j.token){
+          localStorage.setItem('speaksense_token',j.token);
+          if(!currentUser)currentUser=j.user;
+        }
       }
     }catch(_){}
   }

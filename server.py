@@ -752,9 +752,34 @@ Return JSON:
     }
     return web.json_response(fallback_eval)
 
+def detect_audio_type(data: bytes, declared_ct: str = ""):
+    head = data[:32]
+    if head.startswith(b"\x1a\x45\xdf\xa3"):
+        return ("webm", "audio/webm")
+    if len(head) >= 12 and b"ftyp" in head[4:16]:
+        return ("mp4", "audio/mp4")
+    if head.startswith(b"RIFF") and b"WAVE" in head[8:12]:
+        return ("wav", "audio/wav")
+    if head.startswith(b"OggS"):
+        return ("ogg", "audio/ogg")
+    if head.startswith(b"ID3") or (len(head) >= 2 and head[0] == 0xFF and (head[1] & 0xE0) == 0xE0):
+        return ("mp3", "audio/mpeg")
+    ct = (declared_ct or "").lower()
+    if "mp4" in ct or "m4a" in ct or "aac" in ct:
+        return ("mp4", "audio/mp4")
+    if "ogg" in ct:
+        return ("ogg", "audio/ogg")
+    if "wav" in ct:
+        return ("wav", "audio/wav")
+    if "mpeg" in ct or "mp3" in ct:
+        return ("mp3", "audio/mpeg")
+    if "webm" in ct:
+        return ("webm", "audio/webm")
+    return (None, None)
+
 async def handle_upload_recording(request):
     ip = request.remote or "unknown"
-    if not check_rate_limit(ip, "upload", 20, 60):
+    if not check_rate_limit(ip, "upload", 30, 60):
         return web.json_response({"error": "Rate limit exceeded."}, status=429)
 
     user_id = get_auth_user_id(request)
@@ -762,9 +787,6 @@ async def handle_upload_recording(request):
         return web.json_response({"error": "Unauthorized. Sign in or continue as guest to upload."}, status=401)
 
     content_type = request.headers.get("Content-Type", "").lower()
-    valid_mimes = ["audio/webm", "audio/mp4", "audio/wav", "audio/ogg", "audio/mpeg", "video/webm", "video/mp4"]
-    if not any(m in content_type for m in valid_mimes):
-        return web.json_response({"error": "Invalid audio Content-Type"}, status=415)
 
     try:
         body = await request.read()
@@ -773,7 +795,10 @@ async def handle_upload_recording(request):
         if len(body) > 20 * 1024 * 1024:
             return web.json_response({"error": "Audio recording exceeds 20MB limit"}, status=413)
 
-        ext = "mp4" if "mp4" in content_type else ("wav" if "wav" in content_type else "webm")
+        ext, detected_mime = detect_audio_type(body, content_type)
+        if not ext:
+            return web.json_response({"error": "Unsupported or unrecognized audio stream"}, status=415)
+
         rec_id = f"rec_{uuid.uuid4().hex[:16]}.{ext}"
         rec_path = os.path.join(RECORDINGS_DIR, rec_id)
 
@@ -785,20 +810,92 @@ async def handle_upload_recording(request):
         return web.json_response({
             "ok": True,
             "filename": rec_id,
+            "mime": detected_mime,
             "url": f"/recordings/{rec_id}"
         })
     except Exception as e:
         print(f"[Upload Error] {e}")
         return web.json_response({"error": "Upload failed"}, status=500)
 
+async def handle_transcribe(request):
+    ip = request.remote or "unknown"
+    if not check_rate_limit(ip, "transcribe", 30, 60):
+        return web.json_response({"error": "Rate limit exceeded."}, status=429)
+
+    api_key = request.app.get("gemini_key")
+    if not api_key:
+        return web.json_response({"ok": False, "error": "Transcription API key missing"}, status=503)
+
+    content_type = request.headers.get("Content-Type", "").lower()
+    audio_bytes = b""
+    mime_type = "audio/webm"
+
+    try:
+        if "application/json" in content_type:
+            data = await request.json()
+            b64 = str(data.get("audio_base64", "")).strip()
+            if b64:
+                audio_bytes = base64.b64decode(b64)
+                mime_type = str(data.get("mime_type", "audio/webm")).split(";")[0].strip()
+        else:
+            audio_bytes = await request.read()
+            _, detected = detect_audio_type(audio_bytes, content_type)
+            if detected:
+                mime_type = detected
+    except Exception as e:
+        return web.json_response({"ok": False, "error": f"Invalid audio data: {e}"}, status=400)
+
+    if not audio_bytes or len(audio_bytes) < 200:
+        return web.json_response({"ok": True, "transcript": ""})
+
+    if len(audio_bytes) > 15 * 1024 * 1024:
+        return web.json_response({"ok": False, "error": "Audio too large to transcribe"}, status=413)
+
+    b64_audio = base64.b64encode(audio_bytes).decode("ascii")
+    session: ClientSession = request.app["http"]
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent"
+    payload = {
+        "contents": [{
+            "parts": [
+                {"text": "Transcribe the exact spoken English words from this candidate interview recording. Output ONLY the verbatim spoken words with natural punctuation. If there is only silence or background noise with no speech, output an empty string."},
+                {"inlineData": {"mimeType": mime_type, "data": b64_audio}}
+            ]
+        }],
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 500}
+    }
+
+    try:
+        async with session.post(f"{url}?key={api_key}", json=payload, timeout=ClientTimeout(total=15.0)) as resp:
+            if resp.status == 200:
+                res = await resp.json()
+                parts = res.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                txt = "".join(p.get("text", "") for p in parts if isinstance(p, dict)).strip()
+                return web.json_response({"ok": True, "transcript": txt})
+            else:
+                err_txt = await resp.text()
+                print(f"[Transcribe Warning] Gemini HTTP {resp.status}: {err_txt[:150]}")
+    except Exception as e:
+        print(f"[Transcribe Error] {e}")
+
+    return web.json_response({"ok": False, "transcript": ""})
+
 async def handle_get_recording(request):
     filename = os.path.basename(request.match_info.get("filename", ""))
-    if not filename or not (filename.endswith(".webm") or filename.endswith(".mp4") or filename.endswith(".wav")):
+    ext_mime = {
+        ".webm": "audio/webm",
+        ".mp4": "audio/mp4",
+        ".m4a": "audio/mp4",
+        ".wav": "audio/wav",
+        ".ogg": "audio/ogg",
+        ".mp3": "audio/mpeg",
+    }
+    ext = os.path.splitext(filename)[1].lower()
+    if not filename or ext not in ext_mime:
         return web.Response(text="Not found", status=404)
     filepath = os.path.join(RECORDINGS_DIR, filename)
     if not os.path.exists(filepath):
         return web.Response(text="Not found", status=404)
-    return web.FileResponse(filepath)
+    return web.FileResponse(filepath, headers={"Content-Type": ext_mime[ext]})
 
 async def handle_auth_google(request):
     ip = request.remote or "unknown"
@@ -1146,6 +1243,7 @@ def create_app():
     app.router.add_post("/api/analyze", handle_analyze)
 
     # Recordings & Cloud Persistence
+    app.router.add_post("/api/transcribe", handle_transcribe)
     app.router.add_post("/api/recordings/upload", handle_upload_recording)
     app.router.add_get("/recordings/{filename}", handle_get_recording)
 
